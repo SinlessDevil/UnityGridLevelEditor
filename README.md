@@ -2,6 +2,18 @@
 
 A grid-based level editor for Unity, built with UI Toolkit. It lets you author, manage and preview tile-and-block levels stored as ScriptableObjects — directly in the editor and at runtime.
 
+<p align="center">
+  <a href="https://www.youtube.com/watch?v=CG9IhIWX1hc&t=2s" target="_blank">
+    <img src="https://img.youtube.com/vi/CG9IhIWX1hc/0.jpg" alt="Watch the demo" />
+  </a>
+</p>
+
+<p align="center">
+  <a href="https://www.youtube.com/watch?v=CG9IhIWX1hc&t=2s" target="_blank">
+    <img src="https://img.shields.io/badge/Watch%20on-YouTube-FF0000?style=for-the-badge&logo=youtube&logoColor=white" alt="Watch on YouTube" />
+  </a>
+</p>
+
 ## Overview
 
 The tool is split into two editor windows and a runtime generator:
