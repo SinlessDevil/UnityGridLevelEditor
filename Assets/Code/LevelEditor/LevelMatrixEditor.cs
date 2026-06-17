@@ -9,6 +9,7 @@ namespace Code.LevelEditor
         [SerializeField] private int indexLevel;
         [SerializeField] private int width = 5;
         [SerializeField] private int height = 5;
+        [SerializeField] private int nextInstanceId = 1;
 
         // Unity can't serialize a 2D array, so the grid is stored flat (row-major)
         // and addressed through Index(x, y). Use GetCell / GetLevelDataDto to read it.
@@ -22,6 +23,9 @@ namespace Code.LevelEditor
 
         public int Width => width;
         public int Height => height;
+
+        /// <summary>Returns a fresh instance id for a newly placed multi-cell block.</summary>
+        public int NewInstanceId() => nextInstanceId++;
 
         public LevelCell GetCell(int x, int y) => cells[Index(x, y)];
         public LevelCell GetCell(Vector2Int pos) => cells[Index(pos.x, pos.y)];

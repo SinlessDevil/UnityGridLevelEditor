@@ -15,3 +15,4 @@ MonoBehaviour:
   id: Bat
   icon: {fileID: 21300000, guid: 46ccb3ef822a43d429313a5a80c54504, type: 3}
   prefab: {fileID: 1162074717683033587, guid: c60aa9f7bac665448b358145d95a6db4, type: 3}
+  footprint: []

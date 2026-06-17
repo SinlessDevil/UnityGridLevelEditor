@@ -15,3 +15,4 @@ MonoBehaviour:
   id: Spider
   icon: {fileID: 21300000, guid: bad82fec17db2864c87c5c6fcfd4bdb5, type: 3}
   prefab: {fileID: 8672787908860700878, guid: d7aa467cc2d06614c81778313afa4825, type: 3}
+  footprint: []

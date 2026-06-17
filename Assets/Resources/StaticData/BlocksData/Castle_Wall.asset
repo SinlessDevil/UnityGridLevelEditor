@@ -15,3 +15,4 @@ MonoBehaviour:
   id: Castle_Wall
   icon: {fileID: 21300000, guid: 5456e63a8e1b8ed49bc26d6ce5050818, type: 3}
   prefab: {fileID: 4758104223111743461, guid: a7657aa5e6a561e45bbd8310bfd675d5, type: 3}
+  footprint: []

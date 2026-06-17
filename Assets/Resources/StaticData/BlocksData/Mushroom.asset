@@ -15,3 +15,4 @@ MonoBehaviour:
   id: Mushroom
   icon: {fileID: 21300000, guid: b72a2f9b1407eca41a8f2a0ec4f34273, type: 3}
   prefab: {fileID: 49664409928230331, guid: 82dd4b3e48ff1974f92d0019f58a4f24, type: 3}
+  footprint: []

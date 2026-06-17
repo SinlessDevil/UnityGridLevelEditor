@@ -1,36 +1,27 @@
 using System;
-using UnityEditor;
 using UnityEngine;
 using UnityEngine.UIElements;
 
 namespace Code.LevelEditor.Editor
 {
     /// <summary>
-    /// Drives drag-and-drop of a block from the palette onto a grid cell:
-    /// a ghost follows the cursor, the target cell is highlighted, and on
-    /// release the block is written into that cell.
+    /// Drives drag-and-drop of a block from the palette onto the grid. While the
+    /// cursor is over the grid the placement is previewed through the grid's
+    /// footprint stamp; a floating ghost is shown only while outside the grid.
     /// </summary>
     public class BlockDragController
     {
         private readonly VisualElement _ghostHost;
         private readonly Func<LevelGridView> _getGrid;
-        private readonly Func<LevelMatrixEditor> _getLevel;
-        private readonly Action _onPlaced;
 
         private VisualElement _ghost;
         private BlockDataEditor _block;
         private int _pointerId = -1;
 
-        public BlockDragController(
-            VisualElement ghostHost,
-            Func<LevelGridView> getGrid,
-            Func<LevelMatrixEditor> getLevel,
-            Action onPlaced)
+        public BlockDragController(VisualElement ghostHost, Func<LevelGridView> getGrid)
         {
             _ghostHost = ghostHost;
             _getGrid = getGrid;
-            _getLevel = getLevel;
-            _onPlaced = onPlaced;
         }
 
         /// <summary>Makes a palette tile a drag source for the given block.</summary>
@@ -50,6 +41,8 @@ namespace Code.LevelEditor.Editor
             _block = block;
             _pointerId = evt.pointerId;
 
+            _getGrid?.Invoke()?.BeginExternalStamp(block);
+
             CreateGhost(block);
             UpdateGhost(evt.position);
 
@@ -62,10 +55,15 @@ namespace Code.LevelEditor.Editor
             if (_block == null || evt.pointerId != _pointerId)
                 return;
 
+            var grid = _getGrid?.Invoke();
+            bool overGrid = grid != null && grid.TryGetCellAt(evt.position, out _);
+
+            // The snapped footprint stamp takes over once we are over the grid;
+            // the floating ghost is just a carry indicator outside of it.
+            _ghost.style.display = overGrid ? DisplayStyle.None : DisplayStyle.Flex;
             UpdateGhost(evt.position);
 
-            var grid = _getGrid?.Invoke();
-            grid?.SetHoverCell(grid.TryGetCellAt(evt.position, out var cell) ? cell : (Vector2Int?)null);
+            grid?.UpdateExternalStamp(evt.position);
         }
 
         private void OnPointerUp(VisualElement tile, PointerUpEvent evt)
@@ -74,8 +72,8 @@ namespace Code.LevelEditor.Editor
                 return;
 
             var grid = _getGrid?.Invoke();
-            if (grid != null && grid.TryGetCellAt(evt.position, out var cell))
-                PlaceBlock(cell);
+            grid?.TryPlaceExternalStamp(evt.position);
+            grid?.ClearExternalStamp();
 
             if (tile.HasPointerCapture(evt.pointerId))
                 tile.ReleasePointer(evt.pointerId);
@@ -84,25 +82,12 @@ namespace Code.LevelEditor.Editor
             evt.StopPropagation();
         }
 
-        private void PlaceBlock(Vector2Int cellPos)
-        {
-            var level = _getLevel?.Invoke();
-            if (level == null || !level.InBounds(cellPos))
-                return;
-
-            var cell = level.GetCell(cellPos);
-            cell.Block = _block;
-            cell.Rotation = Quaternion.identity;
-
-            EditorUtility.SetDirty(level);
-            _onPlaced?.Invoke();
-        }
-
         private void Cancel()
         {
             if (_block == null)
                 return;
 
+            _getGrid?.Invoke()?.ClearExternalStamp();
             Cleanup();
         }
 
@@ -110,7 +95,6 @@ namespace Code.LevelEditor.Editor
         {
             _block = null;
             _pointerId = -1;
-            _getGrid?.Invoke()?.SetHoverCell(null);
 
             if (_ghost != null)
             {

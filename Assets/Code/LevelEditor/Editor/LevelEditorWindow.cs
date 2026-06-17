@@ -41,11 +41,7 @@ namespace Code.LevelEditor.Editor
             LevelEditorStyles.Apply(rootVisualElement);
             rootVisualElement.AddToClassList("le-root");
 
-            _dragController = new BlockDragController(
-                rootVisualElement,
-                () => _grid,
-                () => _selected,
-                () => _grid?.RefreshCells());
+            _dragController = new BlockDragController(rootVisualElement, () => _grid);
 
             var split = new TwoPaneSplitView(0, 170, TwoPaneSplitViewOrientation.Horizontal);
             split.style.flexGrow = 1;

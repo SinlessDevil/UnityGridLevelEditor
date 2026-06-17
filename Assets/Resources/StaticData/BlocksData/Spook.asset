@@ -15,3 +15,4 @@ MonoBehaviour:
   id: Spook
   icon: {fileID: 21300000, guid: 1c2691b95cb8945428c5e656e7bcb6cb, type: 3}
   prefab: {fileID: 2143963233178108554, guid: 646cf81af973f0647b302702d8983dd5, type: 3}
+  footprint: []

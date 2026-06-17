@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using UnityEngine;
 
 #if UNITY_EDITOR
@@ -13,9 +14,25 @@ namespace Code.LevelEditor
         [SerializeField] private Sprite icon;
         [SerializeField] private GameObject prefab;
 
+        // Multi-cell shape as cell offsets from the block's center (origin).
+        // Empty == a single 1x1 block.
+        [SerializeField] private List<Vector2Int> footprint = new();
+
+        private static readonly List<Vector2Int> SingleCell = new() { Vector2Int.zero };
+
         public string ID => id;
         public Sprite Icon => icon;
         public GameObject Prefab => prefab;
+
+        public IReadOnlyList<Vector2Int> Footprint =>
+            footprint != null && footprint.Count > 0 ? footprint : SingleCell;
+
+        public bool IsMultiCell => footprint != null && footprint.Count > 1;
+
+        public void SetFootprint(IEnumerable<Vector2Int> offsets)
+        {
+            footprint = offsets != null ? new List<Vector2Int>(offsets) : new List<Vector2Int>();
+        }
 
         public void SetID(string newId)
         {

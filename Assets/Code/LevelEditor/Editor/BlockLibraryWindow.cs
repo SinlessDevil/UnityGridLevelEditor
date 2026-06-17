@@ -31,6 +31,7 @@ namespace Code.LevelEditor.Editor
         private TextField _newIdField;
         private ObjectField _newSpriteField;
         private ObjectField _newPrefabField;
+        private BlockShapeEditor _newShapeEditor;
 
         // list + selected
         private VisualElement _listContainer;
@@ -116,6 +117,10 @@ namespace Code.LevelEditor.Editor
             _newPrefabField = new ObjectField("Prefab") { objectType = typeof(GameObject), allowSceneObjects = false };
             box.Add(_newPrefabField);
 
+            box.Add(new Label("Shape") { style = { marginTop = 4 } });
+            _newShapeEditor = new BlockShapeEditor();
+            box.Add(_newShapeEditor);
+
             var create = new Button(CreateNewBlock) { text = "Create New Block" };
             create.AddToClassList("le-create-button");
             box.Add(create);
@@ -142,6 +147,7 @@ namespace Code.LevelEditor.Editor
             newBlock.SetID(id);
             newBlock.SetIcon(sprite);
             newBlock.SetPrefab(_newPrefabField.value as GameObject);
+            newBlock.SetFootprint(_newShapeEditor.GetOffsets());
 
             var assetPath = AssetDatabase.GenerateUniqueAssetPath($"{BlocksFolder}/{id}.asset");
             AssetDatabase.CreateAsset(newBlock, assetPath);
@@ -326,8 +332,14 @@ namespace Code.LevelEditor.Editor
             prefabField.RegisterValueChangedCallback(evt => _blockDraft.Prefab = evt.newValue as GameObject);
             box.Add(prefabField);
 
+            box.Add(new Label("Shape") { style = { marginTop = 4 } });
+            var shapeEditor = new BlockShapeEditor();
+            shapeEditor.SetOffsets(_blockDraft.Footprint);
+            box.Add(shapeEditor);
+
             var apply = new Button(() =>
             {
+                _blockDraft.Footprint = shapeEditor.GetOffsets();
                 _blockDraft.ApplyTo(_selectedBlock);
                 RebuildList();
                 RebuildSelected();

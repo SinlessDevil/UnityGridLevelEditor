@@ -15,3 +15,4 @@ MonoBehaviour:
   id: Phantom
   icon: {fileID: 21300000, guid: 7a5b9d1212a9e574bab8057b0bfd5e9d, type: 3}
   prefab: {fileID: 2611149553095981223, guid: add7e67fb68b0d54a9d9893bd0356223, type: 3}
+  footprint: []

@@ -15,3 +15,4 @@ MonoBehaviour:
   id: Seed
   icon: {fileID: 21300000, guid: 8fd4ab7ec58108649a006d9a5c86ad3b, type: 3}
   prefab: {fileID: 1210038090024910259, guid: 2af4aface4affa44a8ae9f735f47ae8c, type: 3}
+  footprint: []

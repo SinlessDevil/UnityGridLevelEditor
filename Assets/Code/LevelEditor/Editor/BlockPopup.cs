@@ -250,6 +250,7 @@ namespace Code.LevelEditor.Editor
                 var cell = _level.GetCell(pos);
                 cell.Block = block;
                 cell.Rotation = Quaternion.identity;
+                cell.InstanceId = 0;
             }
 
             Changed();
@@ -272,8 +273,13 @@ namespace Code.LevelEditor.Editor
         {
             foreach (var pos in _selection)
             {
-                if (_level.InBounds(pos))
-                    _level.GetCell(pos).Block = null;
+                if (!_level.InBounds(pos))
+                    continue;
+
+                var cell = _level.GetCell(pos);
+                cell.Block = null;
+                cell.Rotation = Quaternion.identity;
+                cell.InstanceId = 0;
             }
 
             Changed();
@@ -328,6 +334,7 @@ namespace Code.LevelEditor.Editor
                 var targetCell = _level.GetCell(targetPos);
                 targetCell.Block = pair.Value.Block;
                 targetCell.Rotation = pair.Value.Rotation;
+                targetCell.InstanceId = 0;
                 pasteCount++;
             }
 

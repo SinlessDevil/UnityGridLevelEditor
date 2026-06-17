@@ -15,3 +15,4 @@ MonoBehaviour:
   id: Spider-Toxin
   icon: {fileID: 21300000, guid: 7717b28d4af90ce4e9eae2c8ae0876ce, type: 3}
   prefab: {fileID: 8754938060832370620, guid: 79f78ce4b8eba2a4c91a83e3d0133dbf, type: 3}
+  footprint: []

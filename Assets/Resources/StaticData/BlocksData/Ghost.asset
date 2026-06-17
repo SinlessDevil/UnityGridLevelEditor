@@ -15,3 +15,4 @@ MonoBehaviour:
   id: Ghost
   icon: {fileID: 21300000, guid: b4cb46bb486e4284d91ae664f4a627c8, type: 3}
   prefab: {fileID: 4524045572467879168, guid: 478a472dd6ec52e4fbc9c3ae78f2b558, type: 3}
+  footprint: []

@@ -15,3 +15,4 @@ MonoBehaviour:
   id: Bee_Cute
   icon: {fileID: 21300000, guid: 8da47673cd771ef41b510dbc20b6aaa4, type: 3}
   prefab: {fileID: 3198499350609119052, guid: 9992beb367802434fbe4638bb61476bb, type: 3}
+  footprint: []

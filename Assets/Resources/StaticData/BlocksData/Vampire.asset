@@ -15,3 +15,4 @@ MonoBehaviour:
   id: Vampire
   icon: {fileID: 21300000, guid: 77f7a09b29bc7c648bd42550021c1029, type: 3}
   prefab: {fileID: 6328325485107444708, guid: ad33f663ccb976944b5d6b42a39ac86a, type: 3}
+  footprint: []

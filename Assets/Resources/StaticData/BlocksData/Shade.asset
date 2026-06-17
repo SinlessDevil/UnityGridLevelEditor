@@ -15,3 +15,8 @@ MonoBehaviour:
   id: Shade
   icon: {fileID: 21300000, guid: 9de69b097acb4b743a9fa9b431dcf12e, type: 3}
   prefab: {fileID: 3118294153675456976, guid: 4ee150fee7825a148b7ceb77408044b5, type: 3}
+  footprint:
+  - {x: 0, y: 0}
+  - {x: 0, y: -1}
+  - {x: -1, y: -1}
+  - {x: -1, y: 0}

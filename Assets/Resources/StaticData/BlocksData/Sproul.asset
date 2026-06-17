@@ -15,3 +15,4 @@ MonoBehaviour:
   id: Sproul
   icon: {fileID: 21300000, guid: 04583f52f968a1a418f9079810eae7dd, type: 3}
   prefab: {fileID: 1033715401186158595, guid: f9258977fbb39f94e890501758fba51c, type: 3}
+  footprint: []

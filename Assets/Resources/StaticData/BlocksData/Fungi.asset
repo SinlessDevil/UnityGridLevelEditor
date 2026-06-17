@@ -15,3 +15,4 @@ MonoBehaviour:
   id: Fungi
   icon: {fileID: 21300000, guid: 88fa9135cc68f3e44804abd84c5527aa, type: 3}
   prefab: {fileID: 4558253575625511845, guid: 91b5d5ead6cb5f045bb0139cedb0e524, type: 3}
+  footprint: []

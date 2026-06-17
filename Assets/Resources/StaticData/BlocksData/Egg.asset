@@ -15,3 +15,4 @@ MonoBehaviour:
   id: Egg
   icon: {fileID: 21300000, guid: 2765584043d58ed4b94a001f125a202d, type: 3}
   prefab: {fileID: 7610133508913661007, guid: 4cc22bc9bbfb9074782265ec91ae0660, type: 3}
+  footprint: []

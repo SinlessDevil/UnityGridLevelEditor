@@ -15,3 +15,4 @@ MonoBehaviour:
   id: Fledglin
   icon: {fileID: 21300000, guid: 5068bed0629f6df43a4163b3bf71df86, type: 3}
   prefab: {fileID: 3444458785134083116, guid: 4f2bb7771f18ffc4d953a91ff9040e0d, type: 3}
+  footprint: []

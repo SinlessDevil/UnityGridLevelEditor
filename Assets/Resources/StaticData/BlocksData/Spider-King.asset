@@ -15,3 +15,4 @@ MonoBehaviour:
   id: Spider-King
   icon: {fileID: 21300000, guid: 575f274918da87e4b9c1d1af22280928, type: 3}
   prefab: {fileID: 9220383817017189135, guid: 888a2743e21511340ab5e6007fadd92d, type: 3}
+  footprint: []

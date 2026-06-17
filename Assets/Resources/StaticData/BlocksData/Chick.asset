@@ -15,3 +15,4 @@ MonoBehaviour:
   id: Chick
   icon: {fileID: 21300000, guid: 60b64bb9f8fe2424bbcd1d7d5c414084, type: 3}
   prefab: {fileID: 6817621319531895399, guid: 5e40f61adf84057419bac8a31f745829, type: 3}
+  footprint: []

@@ -15,3 +15,4 @@ MonoBehaviour:
   id: Bumble
   icon: {fileID: 21300000, guid: 690f10912cc83354aa59320f201b6523, type: 3}
   prefab: {fileID: 3925056490110922654, guid: eb44c0459dbc5ac4a8df592ecacbead3, type: 3}
+  footprint: []
