@@ -11,7 +11,8 @@ namespace Code
         [SerializeField] private GameObject _positionSetUpBlock;
 
         private Vector3 _constantScaleTile;
-        
+        private Vector3 _blockTargetScale = Vector3.one;
+
         private GameObject _block;
 
         private Tween _tileTween;
@@ -32,6 +33,13 @@ namespace Code
             _block = block;
             _block.transform.position = _positionSetUpBlock.transform.position;
             _block.transform.SetParent(this.transform);
+
+            // Remember the prefab's own scale so the show animation restores it
+            // instead of forcing every block to scale 1.
+            _blockTargetScale = _block.transform.localScale;
+            if (_blockTargetScale == Vector3.zero)
+                _blockTargetScale = Vector3.one;
+
             _block.transform.localScale = Vector3.zero;
         }
 
@@ -63,7 +71,7 @@ namespace Code
             _block.transform.localScale = Vector3.zero;
             _blockTween?.Kill();
 
-            _blockTween = _block.transform.DOScale(Vector3.one, 0.25f)
+            _blockTween = _block.transform.DOScale(_blockTargetScale, 0.25f)
                 .SetEase(Ease.OutBack);
         }
 
