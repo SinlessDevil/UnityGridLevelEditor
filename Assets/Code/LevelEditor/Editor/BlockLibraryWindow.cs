@@ -40,7 +40,7 @@ namespace Code.LevelEditor.Editor
         [MenuItem("Tools/Grid Level Editor/Block Window")]
         public static void ShowWindow()
         {
-            var window = GetWindow<BlockLibraryWindow>(false, "Block Library", true);
+            var window = GetWindow<BlockLibraryWindow>(false, "Block Editor", true);
             window.minSize = new Vector2(420, 560);
         }
 
@@ -58,8 +58,9 @@ namespace Code.LevelEditor.Editor
             scroll.Add(BuildSearchSection());
 
             var listBox = LevelEditorStyles.Section("Existing Blocks");
-            _listContainer = new VisualElement();
-            listBox.Add(_listContainer);
+            var listScroll = new ScrollView { style = { maxHeight = 260 } };
+            _listContainer = listScroll.contentContainer;
+            listBox.Add(listScroll);
             scroll.Add(listBox);
 
             _selectedContainer = new VisualElement();
