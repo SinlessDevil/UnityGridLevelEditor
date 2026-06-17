@@ -17,15 +17,28 @@ namespace Code.LevelEditor.Editor
 
         private readonly List<Vector2Int> _selection = new();
         private Vector2Int? _selectionStart;
-        private Vector2Int? _hoverCell;
+        private readonly List<Vector2Int> _hoverCells = new();
 
-        // Drag-to-move state (left button drag of a filled cell onto another cell).
+        // Drag-to-move state (left button drag of the selected cells onto another location).
         private const float DragThreshold = 4f;
         private Vector2Int? _moveSource;
         private Vector2 _pointerDownPos;
         private bool _moving;
         private int _movePointerId = -1;
-        private VisualElement _moveGhost;
+        private readonly List<Vector2Int> _dragOffsets = new();  // cell offsets relative to the grabbed anchor
+        private readonly List<StampIcon> _stampIcons = new();    // translucent preview, one per moved block
+
+        private readonly struct StampIcon
+        {
+            public readonly Vector2Int Offset;
+            public readonly VisualElement Element;
+
+            public StampIcon(Vector2Int offset, VisualElement element)
+            {
+                Offset = offset;
+                Element = element;
+            }
+        }
 
         /// <summary>
         /// Raised on right click. Arguments are the clicked cell position and the
@@ -79,13 +92,35 @@ namespace Code.LevelEditor.Editor
         /// <summary>Highlights a single cell as a drop target (pass null to clear).</summary>
         public void SetHoverCell(Vector2Int? cell)
         {
-            if (_hoverCell.HasValue && IsValid(_hoverCell.Value))
-                _cells[_hoverCell.Value.x, _hoverCell.Value.y].RemoveFromClassList("le-cell--drop-target");
+            if (cell.HasValue)
+                SetHoverCells(new[] { cell.Value }, true);
+            else
+                SetHoverCells(Array.Empty<Vector2Int>(), true);
+        }
 
-            _hoverCell = cell;
+        /// <summary>Highlights a set of cells as drop targets, tinted by validity.</summary>
+        public void SetHoverCells(IEnumerable<Vector2Int> cells, bool valid)
+        {
+            foreach (var c in _hoverCells)
+            {
+                if (!IsValid(c))
+                    continue;
 
-            if (cell.HasValue && IsValid(cell.Value))
-                _cells[cell.Value.x, cell.Value.y].AddToClassList("le-cell--drop-target");
+                _cells[c.x, c.y].RemoveFromClassList("le-cell--drop-target");
+                _cells[c.x, c.y].RemoveFromClassList("le-cell--drop-invalid");
+            }
+
+            _hoverCells.Clear();
+
+            string cssClass = valid ? "le-cell--drop-target" : "le-cell--drop-invalid";
+            foreach (var c in cells)
+            {
+                if (!IsValid(c))
+                    continue;
+
+                _cells[c.x, c.y].AddToClassList(cssClass);
+                _hoverCells.Add(c);
+            }
         }
 
         private bool IsValid(Vector2Int p) =>
@@ -94,15 +129,14 @@ namespace Code.LevelEditor.Editor
 
         public void Rebuild()
         {
-            _moveGhost?.RemoveFromHierarchy();
-            _moveGhost = null;
+            ClearStamp();
             _moveSource = null;
             _moving = false;
             _movePointerId = -1;
 
             Clear();
             _cells = null;
-            _hoverCell = null;
+            _hoverCells.Clear();
 
             if (_level == null)
                 return;
@@ -224,16 +258,37 @@ namespace Code.LevelEditor.Editor
                 if (Vector2.Distance(evt.position, _pointerDownPos) < DragThreshold)
                     return;
 
-                var source = _level.GetCell(_moveSource.Value);
-                if (source?.Block == null)
+                if (!BeginDrag())
                     return; // nothing to carry; stays a click
-
-                _moving = true;
-                CreateMoveGhost(source.Block);
             }
 
-            UpdateMoveGhost(evt.position);
-            SetHoverCell(TryGetCellAt(evt.position, out var cell) ? cell : (Vector2Int?)null);
+            UpdateStamp(evt.position);
+        }
+
+        /// <summary>Decides which cells are being dragged and builds the preview stamp.</summary>
+        private bool BeginDrag()
+        {
+            var anchor = _moveSource.Value;
+
+            // Dragging a cell that belongs to a multi-selection moves the whole selection.
+            bool isGroup = _selection.Count > 1 && _selection.Contains(anchor);
+
+            List<Vector2Int> group;
+            if (isGroup)
+            {
+                group = new List<Vector2Int>(_selection);
+            }
+            else
+            {
+                if (_level.GetCell(anchor).Block == null)
+                    return false; // empty single cell -> treat as a click
+
+                group = new List<Vector2Int> { anchor };
+            }
+
+            _moving = true;
+            BuildStamp(anchor, group);
+            return true;
         }
 
         private void OnCellPointerUp(PointerUpEvent evt, VisualElement cell)
@@ -241,12 +296,14 @@ namespace Code.LevelEditor.Editor
             if (!_moveSource.HasValue || evt.pointerId != _movePointerId)
                 return;
 
-            var source = _moveSource.Value;
-
             if (_moving)
             {
-                if (TryGetCellAt(evt.position, out var target) && target != source && _level.InBounds(target))
-                    MoveBlock(source, target);
+                if (TryGetCellAt(evt.position, out var hovered))
+                {
+                    var delta = hovered - _moveSource.Value;
+                    if (delta != Vector2Int.zero && IsDropValid(hovered))
+                        MoveGroup(delta);
+                }
             }
             else
             {
@@ -263,18 +320,58 @@ namespace Code.LevelEditor.Editor
             evt.StopPropagation();
         }
 
-        private void MoveBlock(Vector2Int source, Vector2Int target)
+        /// <summary>True when every dragged cell lands inside the grid for the hovered anchor.</summary>
+        private bool IsDropValid(Vector2Int hovered)
         {
-            var from = _level.GetCell(source);
-            var to = _level.GetCell(target);
+            foreach (var offset in _dragOffsets)
+                if (!_level.InBounds(hovered + offset))
+                    return false;
 
-            to.Block = from.Block;
-            to.Rotation = from.Rotation;
+            return true;
+        }
 
-            from.Block = null;
-            from.Rotation = Quaternion.identity;
+        private void MoveGroup(Vector2Int delta)
+        {
+            var anchor = _moveSource.Value;
+
+            // Snapshot every source cell first: source and destination ranges can overlap.
+            var sources = new List<Vector2Int>(_dragOffsets.Count);
+            var blocks = new List<BlockDataEditor>(_dragOffsets.Count);
+            var rotations = new List<Quaternion>(_dragOffsets.Count);
+
+            foreach (var offset in _dragOffsets)
+            {
+                var src = anchor + offset;
+                var c = _level.GetCell(src);
+                sources.Add(src);
+                blocks.Add(c.Block);
+                rotations.Add(c.Rotation);
+            }
+
+            foreach (var src in sources)
+            {
+                var c = _level.GetCell(src);
+                c.Block = null;
+                c.Rotation = Quaternion.identity;
+            }
+
+            var moved = new List<Vector2Int>(sources.Count);
+            for (int i = 0; i < sources.Count; i++)
+            {
+                var dst = sources[i] + delta;
+                var c = _level.GetCell(dst);
+                c.Block = blocks[i];
+                c.Rotation = rotations[i];
+                moved.Add(dst);
+            }
 
             EditorUtility.SetDirty(_level);
+
+            // Selection follows the moved cells.
+            _selection.Clear();
+            _selection.AddRange(moved);
+            _selectionStart = null;
+
             RefreshCells();
         }
 
@@ -289,37 +386,85 @@ namespace Code.LevelEditor.Editor
             _moveSource = null;
             _moving = false;
             _movePointerId = -1;
-            SetHoverCell(null);
+            SetHoverCells(Array.Empty<Vector2Int>(), true);
+            ClearStamp();
+        }
 
-            if (_moveGhost != null)
+        // ---- Preview stamp ----
+
+        private void BuildStamp(Vector2Int anchor, List<Vector2Int> group)
+        {
+            ClearStamp();
+
+            var host = GhostHost ?? panel?.visualTree;
+
+            foreach (var cellPos in group)
             {
-                _moveGhost.RemoveFromHierarchy();
-                _moveGhost = null;
+                var offset = cellPos - anchor;
+                _dragOffsets.Add(offset);
+
+                var data = _level.GetCell(cellPos);
+                if (host == null || data?.Block?.Icon == null)
+                    continue;
+
+                var icon = new VisualElement { pickingMode = PickingMode.Ignore };
+                icon.AddToClassList("le-stamp-icon");
+                icon.style.backgroundImage = Background.FromSprite(data.Block.Icon);
+                icon.style.display = DisplayStyle.None;
+
+                host.Add(icon);
+                _stampIcons.Add(new StampIcon(offset, icon));
             }
         }
 
-        private void CreateMoveGhost(BlockDataEditor block)
+        private void UpdateStamp(Vector2 panelPosition)
         {
-            _moveGhost?.RemoveFromHierarchy();
-
-            _moveGhost = new VisualElement { pickingMode = PickingMode.Ignore };
-            _moveGhost.AddToClassList("le-drag-ghost");
-
-            if (block.Icon != null)
-                _moveGhost.style.backgroundImage = Background.FromSprite(block.Icon);
-
             var host = GhostHost ?? panel?.visualTree;
-            host?.Add(_moveGhost);
-        }
-
-        private void UpdateMoveGhost(Vector2 panelPosition)
-        {
-            if (_moveGhost == null)
+            if (host == null)
                 return;
 
-            float half = _moveGhost.resolvedStyle.width > 0 ? _moveGhost.resolvedStyle.width / 2f : 28f;
-            _moveGhost.style.left = panelPosition.x - half;
-            _moveGhost.style.top = panelPosition.y - half;
+            if (!TryGetCellAt(panelPosition, out var hovered))
+            {
+                SetHoverCells(Array.Empty<Vector2Int>(), true);
+                foreach (var stamp in _stampIcons)
+                    stamp.Element.style.display = DisplayStyle.None;
+                return;
+            }
+
+            bool valid = IsDropValid(hovered);
+
+            var dests = new List<Vector2Int>(_dragOffsets.Count);
+            foreach (var offset in _dragOffsets)
+                dests.Add(hovered + offset);
+            SetHoverCells(dests, valid);
+
+            foreach (var stamp in _stampIcons)
+            {
+                var dst = hovered + stamp.Offset;
+                if (!_level.InBounds(dst))
+                {
+                    stamp.Element.style.display = DisplayStyle.None;
+                    continue;
+                }
+
+                var wb = _cells[dst.x, dst.y].worldBound;
+                var local = host.WorldToLocal(new Vector2(wb.x, wb.y));
+
+                stamp.Element.style.display = DisplayStyle.Flex;
+                stamp.Element.style.left = local.x;
+                stamp.Element.style.top = local.y;
+                stamp.Element.style.width = wb.width;
+                stamp.Element.style.height = wb.height;
+            }
+        }
+
+        private void ClearStamp()
+        {
+            foreach (var stamp in _stampIcons)
+                stamp.Element.RemoveFromHierarchy();
+
+            _stampIcons.Clear();
+            _dragOffsets.Clear();
         }
 
         private void SelectRange(Vector2Int start, Vector2Int end)

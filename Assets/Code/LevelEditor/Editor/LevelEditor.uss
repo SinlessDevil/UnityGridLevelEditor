@@ -75,6 +75,17 @@
     background-color: rgba(90, 170, 255, 0.25);
 }
 
+.le-cell--drop-invalid {
+    border-color: rgb(220, 90, 90);
+    border-width: 2px;
+    background-color: rgba(220, 90, 90, 0.22);
+}
+
+.le-stamp-icon {
+    position: absolute;
+    opacity: 0.55;
+}
+
 /* ---- Palette ---- */
 
 .le-palette {
