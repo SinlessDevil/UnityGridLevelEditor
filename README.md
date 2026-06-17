@@ -30,9 +30,9 @@ Levels and blocks are plain ScriptableObjects under `Assets/Resources/StaticData
 - Context menu (right click) for block selection, rotation, copy/paste and clearing.
 - Built-in log panel and a controls overlay.
 
-<img width="2552" height="1383" alt="image" src="https://github.com/user-attachments/assets/6dde5fea-8594-4342-af7b-8e3256d5de6c" />
-<img width="2554" height="1387" alt="image" src="https://github.com/user-attachments/assets/1cffcad2-29d9-4208-963a-2a52513cf73f" />
+<img width="2554" height="1387" alt="image" src="https://github.com/user-attachments/assets/b2489fd3-8475-49ab-81ab-0230ad79e950" />
 <img width="349" height="694" alt="image" src="https://github.com/user-attachments/assets/d9529e3d-ce58-424d-aec8-919f2fc9c5c0" />
+<img width="289" height="174" alt="image" src="https://github.com/user-attachments/assets/2d230346-bb06-48a2-b887-8de63893680d" />
 
 ### Runtime Generator
 - Spawns floor tiles and blocks from the authored level data through injected factories.
