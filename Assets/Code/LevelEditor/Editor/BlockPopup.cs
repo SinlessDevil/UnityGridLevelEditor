@@ -14,12 +14,12 @@ namespace Code.LevelEditor.Editor
     public class BlockPopup : EditorWindow
     {
         private static BlockPopup _current;
-        private static readonly Dictionary<Vector2Int, LevelCell> _clipboard = new();
 
         private LevelMatrixEditor _level;
         private BlockLibrary _library;
         private List<Vector2Int> _selection;
         private Action _onChanged;
+        private Action<string, LogLevel> _log;
 
         private string _blockFilter = "";
         private VisualElement _blockListContainer;
@@ -30,7 +30,8 @@ namespace Code.LevelEditor.Editor
             LevelMatrixEditor level,
             BlockLibrary library,
             IEnumerable<Vector2Int> selection,
-            Action onChanged)
+            Action onChanged,
+            Action<string, LogLevel> log)
         {
             if (_current != null)
                 _current.Close();
@@ -40,6 +41,7 @@ namespace Code.LevelEditor.Editor
             _current._library = library;
             _current._selection = selection.ToList();
             _current._onChanged = onChanged;
+            _current._log = log;
 
             _current.ShowPopup();
             _current.position = new Rect(activatorRect.position, new Vector2(360, 560));
@@ -283,63 +285,46 @@ namespace Code.LevelEditor.Editor
             }
 
             Changed();
+            _log?.Invoke("Cleared selection", LogLevel.Info);
         }
 
         private void Copy()
         {
-            _clipboard.Clear();
-
             if (_selection == null || _selection.Count == 0)
             {
-                Debug.LogWarning("No cells selected to copy.");
+                _log?.Invoke("Nothing selected to copy", LogLevel.Info);
                 return;
             }
 
-            foreach (var pos in _selection)
-            {
-                if (!_level.InBounds(pos))
-                    continue;
-
-                var cell = _level.GetCell(pos);
-                _clipboard[pos] = new LevelCell { Block = cell.Block, Rotation = cell.Rotation };
-            }
-
-            Debug.Log($"Copied {_clipboard.Count} cells");
+            LevelClipboard.Copy(_level, _selection);
+            _log?.Invoke($"Copied {LevelClipboard.Count} cell(s)", LogLevel.Success);
         }
 
         private void Paste()
         {
-            if (_clipboard.Count == 0)
+            if (!LevelClipboard.HasData)
             {
-                Debug.LogWarning("Nothing copied to paste.");
+                _log?.Invoke("Clipboard is empty", LogLevel.Info);
                 return;
             }
 
             if (_selection == null || _selection.Count == 0)
             {
-                Debug.LogWarning("No cells selected to paste into.");
+                _log?.Invoke("Select a target cell to paste", LogLevel.Error);
                 return;
             }
 
-            var firstTarget = _selection[0];
-            var firstSource = _clipboard.Keys.First();
-            int pasteCount = 0;
+            var (pasted, blocked) = LevelClipboard.Paste(_level, _selection[0]);
 
-            foreach (var pair in _clipboard)
-            {
-                var targetPos = firstTarget + (pair.Key - firstSource);
-                if (!_level.InBounds(targetPos))
-                    continue;
+            if (pasted > 0)
+                Changed();
 
-                var targetCell = _level.GetCell(targetPos);
-                targetCell.Block = pair.Value.Block;
-                targetCell.Rotation = pair.Value.Rotation;
-                targetCell.InstanceId = 0;
-                pasteCount++;
-            }
-
-            Debug.Log($"Pasted {pasteCount} cells starting from [{firstTarget.x},{firstTarget.y}]");
-            Changed();
+            if (blocked > 0 && pasted == 0)
+                _log?.Invoke("Can't paste into a solid object", LogLevel.Error);
+            else if (blocked > 0)
+                _log?.Invoke($"Pasted {pasted}, {blocked} blocked by solid objects", LogLevel.Info);
+            else
+                _log?.Invoke($"Pasted {pasted} cell(s)", LogLevel.Success);
         }
 
         private void Changed()

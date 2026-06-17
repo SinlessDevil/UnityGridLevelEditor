@@ -74,9 +74,13 @@ namespace Code.LevelEditor.Editor
         /// </summary>
         public VisualElement GhostHost { get; set; }
 
+        /// <summary>Optional sink for user-facing messages (set by the window).</summary>
+        public Action<string, LogLevel> Log { get; set; }
+
         public LevelGridView()
         {
             AddToClassList("le-grid");
+            focusable = true; // so the grid can receive Ctrl+C / Ctrl+V
 
             // Drag is driven through pointer capture on the grid itself so it keeps
             // working while cells/plates underneath are rebuilt.
@@ -84,6 +88,7 @@ namespace Code.LevelEditor.Editor
             RegisterCallback<PointerUpEvent>(OnDragUp);
             RegisterCallback<PointerCaptureOutEvent>(_ => CancelMove());
             RegisterCallback<GeometryChangedEvent>(_ => PositionPlates());
+            RegisterCallback<KeyDownEvent>(OnKeyDown);
         }
 
         public void SetLevel(LevelMatrixEditor level)
@@ -256,6 +261,13 @@ namespace Code.LevelEditor.Editor
                 icon.style.backgroundImage = Background.FromSprite(block.Icon);
             plate.Add(icon);
 
+            var arrow = new Label("↑") { pickingMode = PickingMode.Ignore };
+            arrow.AddToClassList("le-plate__arrow");
+            float angle = _level.GetCell(cells[0]).Rotation.eulerAngles.y;
+            arrow.style.translate = new Translate(Length.Percent(-50), 0);
+            arrow.style.rotate = new Rotate(new Angle(angle, AngleUnit.Degree));
+            plate.Add(arrow);
+
             var label = new Label(block.ID) { pickingMode = PickingMode.Ignore };
             label.AddToClassList("le-plate__id");
             plate.Add(label);
@@ -354,6 +366,7 @@ namespace Code.LevelEditor.Editor
 
         private void OnCellPointerDown(PointerDownEvent evt, Vector2Int pos)
         {
+            Focus(); // route keyboard shortcuts here
             bool ctrl = evt.ctrlKey || evt.commandKey;
 
             if (evt.button == 1)
@@ -400,6 +413,8 @@ namespace Code.LevelEditor.Editor
 
         private void OnPlatePointerDown(PointerDownEvent evt, List<Vector2Int> cells)
         {
+            Focus(); // route keyboard shortcuts here
+
             if (evt.button == 1)
             {
                 _selection.Clear();
@@ -862,8 +877,14 @@ namespace Code.LevelEditor.Editor
             if (_externalBlock == null || _level == null)
                 return false;
 
-            if (!TryGetCellAt(panelPosition, out var hovered) || !IsDropValid(hovered))
+            if (!TryGetCellAt(panelPosition, out var hovered))
+                return false; // dropped outside the grid
+
+            if (!IsDropValid(hovered))
+            {
+                Log?.Invoke($"Can't place '{_externalBlock.ID}': out of bounds", LogLevel.Error);
                 return false;
+            }
 
             var targets = new List<Vector2Int>(_dragOffsets.Count);
             foreach (var offset in _dragOffsets)
@@ -882,6 +903,7 @@ namespace Code.LevelEditor.Editor
 
             EditorUtility.SetDirty(_level);
             RefreshCells();
+            Log?.Invoke($"Placed '{_externalBlock.ID}'", LogLevel.Success);
             return true;
         }
 
@@ -893,6 +915,99 @@ namespace Code.LevelEditor.Editor
         }
 
         // ---- Selection ----
+
+        // ---- Keyboard copy / paste ----
+
+        private void OnKeyDown(KeyDownEvent evt)
+        {
+            if (_level == null)
+                return;
+
+            if (evt.keyCode == KeyCode.Backspace || evt.keyCode == KeyCode.Delete)
+            {
+                DeleteSelection();
+                evt.StopPropagation();
+                return;
+            }
+
+            bool ctrl = evt.ctrlKey || evt.commandKey;
+            if (!ctrl)
+                return;
+
+            if (evt.keyCode == KeyCode.C)
+            {
+                CopySelection();
+                evt.StopPropagation();
+            }
+            else if (evt.keyCode == KeyCode.V)
+            {
+                PasteSelection();
+                evt.StopPropagation();
+            }
+        }
+
+        private void DeleteSelection()
+        {
+            if (_selection.Count == 0)
+            {
+                Log?.Invoke("Nothing selected to delete", LogLevel.Info);
+                return;
+            }
+
+            int count = _selection.Count;
+
+            // Clears standalone selected cells and any whole object they touch.
+            ClearArea(_selection);
+
+            EditorUtility.SetDirty(_level);
+            _selection.Clear();
+            _selectionStart = null;
+            RefreshCells();
+
+            Log?.Invoke($"Deleted {count} selected cell(s)", LogLevel.Info);
+        }
+
+        private void CopySelection()
+        {
+            if (_selection.Count == 0)
+            {
+                Log?.Invoke("Nothing selected to copy", LogLevel.Info);
+                return;
+            }
+
+            LevelClipboard.Copy(_level, _selection);
+            Log?.Invoke($"Copied {LevelClipboard.Count} cell(s)", LogLevel.Success);
+        }
+
+        private void PasteSelection()
+        {
+            if (!LevelClipboard.HasData)
+            {
+                Log?.Invoke("Clipboard is empty", LogLevel.Info);
+                return;
+            }
+
+            if (_selection.Count == 0)
+            {
+                Log?.Invoke("Select a target cell to paste", LogLevel.Error);
+                return;
+            }
+
+            var (pasted, blocked) = LevelClipboard.Paste(_level, _selection[0]);
+
+            if (pasted > 0)
+            {
+                EditorUtility.SetDirty(_level);
+                RefreshCells();
+            }
+
+            if (blocked > 0 && pasted == 0)
+                Log?.Invoke("Can't paste into a solid object", LogLevel.Error);
+            else if (blocked > 0)
+                Log?.Invoke($"Pasted {pasted}, {blocked} blocked by solid objects", LogLevel.Info);
+            else
+                Log?.Invoke($"Pasted {pasted} cell(s)", LogLevel.Success);
+        }
 
         private void SelectRange(Vector2Int start, Vector2Int end)
         {

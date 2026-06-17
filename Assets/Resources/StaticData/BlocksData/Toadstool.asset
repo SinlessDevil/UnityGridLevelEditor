@@ -15,4 +15,13 @@ MonoBehaviour:
   id: Toadstool
   icon: {fileID: 21300000, guid: 5c66b1cd17c6a0149af8f659c6d8c632, type: 3}
   prefab: {fileID: 8666222085425565636, guid: 6817f99c996d6954bbc09b0c865d9807, type: 3}
-  footprint: []
+  footprint:
+  - {x: 0, y: 0}
+  - {x: -1, y: -1}
+  - {x: -1, y: 0}
+  - {x: -1, y: 1}
+  - {x: 0, y: 1}
+  - {x: 1, y: 1}
+  - {x: 1, y: 0}
+  - {x: 1, y: -1}
+  - {x: 0, y: -1}

@@ -15,4 +15,8 @@ MonoBehaviour:
   id: Shadow
   icon: {fileID: 21300000, guid: 1e7ec59ec40f640458ca4dc320119026, type: 3}
   prefab: {fileID: 1734572081990470152, guid: 7f3425f16f17470468f250a8fd950f73, type: 3}
-  footprint: []
+  footprint:
+  - {x: 0, y: 0}
+  - {x: -1, y: 0}
+  - {x: -1, y: -1}
+  - {x: 0, y: -1}

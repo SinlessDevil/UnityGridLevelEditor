@@ -15,4 +15,7 @@ MonoBehaviour:
   id: Bird
   icon: {fileID: 21300000, guid: ca2a8d657e8c0574fa5010534ce02501, type: 3}
   prefab: {fileID: 2361259873805981146, guid: 509cc0139dddd3e4fbe729e27b8f0dc8, type: 3}
-  footprint: []
+  footprint:
+  - {x: 0, y: 0}
+  - {x: -1, y: 0}
+  - {x: 1, y: 0}

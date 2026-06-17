@@ -10,12 +10,12 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 1aec87fdf02318d4e94157e0008e6d45, type: 3}
-  m_Name: NewLevel
+  m_Name: Level 1
   m_EditorClassIdentifier: 
   indexLevel: 1
   width: 5
   height: 5
-  nextInstanceId: 4
+  nextInstanceId: 5
   cells:
   - Block: {fileID: 11400000, guid: 5a9c7f5812b62544c85e66c07cee02ac, type: 2}
     Rotation: {x: 0, y: 0.70710677, z: 0, w: 0.70710677}

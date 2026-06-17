@@ -15,4 +15,6 @@ MonoBehaviour:
   id: Flower
   icon: {fileID: 21300000, guid: 107e117e366bb364d939e9cd87ad6313, type: 3}
   prefab: {fileID: 3491765107648122082, guid: da80564eb12e49148ad00f2d218dd90e, type: 3}
-  footprint: []
+  footprint:
+  - {x: 0, y: 0}
+  - {x: 0, y: -1}

@@ -15,4 +15,8 @@ MonoBehaviour:
   id: Sting
   icon: {fileID: 21300000, guid: 8f2913d99ed313748b01466c10eb10f1, type: 3}
   prefab: {fileID: 6902694358650038786, guid: 785a71c34aa70094982ab3dc90ecd70f, type: 3}
-  footprint: []
+  footprint:
+  - {x: 0, y: 0}
+  - {x: -1, y: -1}
+  - {x: -1, y: 0}
+  - {x: 0, y: -1}

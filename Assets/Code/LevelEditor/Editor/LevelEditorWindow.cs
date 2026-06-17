@@ -14,6 +14,7 @@ namespace Code.LevelEditor.Editor
         private LevelMatrixEditor _selected;
 
         private DropdownField _levelDropdown;
+        private TextField _nameField;
         private IntegerField _indexField;
         private IntegerField _widthField;
         private IntegerField _heightField;
@@ -21,6 +22,7 @@ namespace Code.LevelEditor.Editor
         private LevelGridView _grid;
         private BlockPaletteView _palette;
         private BlockDragController _dragController;
+        private LogView _log;
 
         private IntegerField _newIndexField;
         private TextField _newNameField;
@@ -58,6 +60,9 @@ namespace Code.LevelEditor.Editor
 
             _inspector = new VisualElement();
             scroll.Add(_inspector);
+
+            _log = new LogView();
+            rootVisualElement.Add(_log);
 
             LoadLevels();
             RefreshDropdown();
@@ -122,13 +127,14 @@ namespace Code.LevelEditor.Editor
                     "Delete", "Cancel"))
                 return;
 
+            string deletedName = _selected.name;
             string path = AssetDatabase.GetAssetPath(_selected);
             if (!string.IsNullOrEmpty(path))
             {
                 AssetDatabase.DeleteAsset(path);
                 AssetDatabase.SaveAssets();
                 AssetDatabase.Refresh();
-                Debug.Log($"Deleted level: {path}");
+                _log?.Log($"Deleted level '{deletedName}'", LogLevel.Info);
             }
 
             LoadLevels();
@@ -175,7 +181,7 @@ namespace Code.LevelEditor.Editor
             AssetDatabase.CreateAsset(level, assetPath);
             AssetDatabase.SaveAssets();
             AssetDatabase.Refresh();
-            Debug.Log($"Created new level: {assetPath}");
+            _log?.Log($"Created level '{level.name}'", LogLevel.Success);
 
             LoadLevels();
             RefreshDropdown();
@@ -195,6 +201,14 @@ namespace Code.LevelEditor.Editor
             }
 
             var box = LevelEditorStyles.Section($"Editing: {_selected.name}");
+
+            var nameRow = new VisualElement();
+            nameRow.AddToClassList("le-row");
+            _nameField = new TextField("Name") { value = _selected.name };
+            _nameField.style.flexGrow = 1;
+            nameRow.Add(_nameField);
+            nameRow.Add(new Button(RenameSelected) { text = "Rename" });
+            box.Add(nameRow);
 
             _indexField = new IntegerField("Level Index") { value = _selected.IndexLevel };
             _indexField.RegisterValueChangedCallback(evt =>
@@ -218,16 +232,69 @@ namespace Code.LevelEditor.Editor
             sizeRow.Add(resize);
             box.Add(sizeRow);
 
+            box.Add(BuildHints());
+
             _inspector.Add(box);
 
             _grid = new LevelGridView();
             _grid.GhostHost = rootVisualElement;
+            _grid.Log = _log.Log;
             _grid.CellRightClicked += OnCellRightClicked;
             _grid.SetLevel(_selected);
 
             var gridScroll = new ScrollView(ScrollViewMode.VerticalAndHorizontal);
             gridScroll.Add(_grid);
             _inspector.Add(gridScroll);
+        }
+
+        private VisualElement BuildHints()
+        {
+            var box = new VisualElement();
+            box.AddToClassList("le-hints");
+
+            box.Add(new Label("Controls") { name = "hints-title" });
+            foreach (var line in new[]
+            {
+                "Palette → drag onto grid to place a block",
+                "LMB drag — move a block / object",
+                "Ctrl + LMB — select cells (range)",
+                "RMB — block menu (rotate / copy / paste / clear)",
+                "Ctrl + C / Ctrl + V — copy / paste selected cells",
+                "Backspace / Delete — clear selected cells"
+            })
+            {
+                var label = new Label("• " + line);
+                label.AddToClassList("le-hints__line");
+                box.Add(label);
+            }
+
+            return box;
+        }
+
+        private void RenameSelected()
+        {
+            if (_selected == null)
+                return;
+
+            string newName = _nameField.value?.Trim();
+            if (string.IsNullOrEmpty(newName) || newName == _selected.name)
+                return;
+
+            string path = AssetDatabase.GetAssetPath(_selected);
+            string error = AssetDatabase.RenameAsset(path, newName);
+
+            if (!string.IsNullOrEmpty(error))
+            {
+                _log.Log($"Rename failed: {error}", LogLevel.Error);
+                return;
+            }
+
+            AssetDatabase.SaveAssets();
+            _log.Log($"Renamed level to '{_selected.name}'", LogLevel.Success);
+
+            LoadLevels();
+            RefreshDropdown();
+            SelectLevel(_selected);
         }
 
         private void ResizeSelected()
@@ -241,6 +308,8 @@ namespace Code.LevelEditor.Editor
             _widthField.SetValueWithoutNotify(_selected.Width);
             _heightField.SetValueWithoutNotify(_selected.Height);
             _grid.Rebuild();
+
+            _log.Log($"Resized to {_selected.Width}×{_selected.Height}", LogLevel.Info);
         }
 
         private void OnCellRightClicked(Vector2Int pos, Vector2 panelMouse)
@@ -259,7 +328,7 @@ namespace Code.LevelEditor.Editor
             {
                 EditorUtility.SetDirty(_selected);
                 _grid.RefreshCells();
-            });
+            }, _log.Log);
         }
 
         // ---- Data loading ----

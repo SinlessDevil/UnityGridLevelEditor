@@ -126,6 +126,15 @@
     -unity-text-align: lower-center;
 }
 
+.le-plate__arrow {
+    position: absolute;
+    top: -2px;
+    left: 50%;
+    font-size: 18px;
+    -unity-font-style: bold;
+    color: rgb(80, 220, 80);
+}
+
 .le-stamp-icon {
     position: absolute;
     opacity: 0.55;
@@ -177,6 +186,64 @@
 
 .le-shape-cell--on {
     background-color: rgb(90, 170, 255);
+}
+
+/* ---- Hints ---- */
+
+.le-hints {
+    margin-top: 8px;
+    padding: 6px;
+    background-color: rgba(0, 0, 0, 0.15);
+    border-radius: 4px;
+}
+
+#hints-title {
+    -unity-font-style: bold;
+    font-size: 11px;
+    margin-bottom: 2px;
+}
+
+.le-hints__line {
+    font-size: 11px;
+    color: rgb(180, 180, 180);
+}
+
+/* ---- Log footer ---- */
+
+.le-log {
+    height: 110px;
+    flex-shrink: 0;
+    padding: 4px 6px 6px 6px;
+    border-top-width: 1px;
+    border-top-color: rgba(0, 0, 0, 0.5);
+    background-color: rgba(0, 0, 0, 0.2);
+}
+
+.le-log__title {
+    -unity-font-style: bold;
+    font-size: 11px;
+    margin-bottom: 2px;
+}
+
+.le-log__scroll {
+    flex-grow: 1;
+}
+
+.le-log__entry {
+    font-size: 11px;
+    white-space: normal;
+}
+
+.le-log__entry--info {
+    color: rgb(200, 200, 200);
+}
+
+.le-log__entry--success {
+    color: rgb(120, 210, 120);
+}
+
+.le-log__entry--error {
+    color: rgb(230, 110, 110);
 }
 
 /* ---- Palette ---- */
