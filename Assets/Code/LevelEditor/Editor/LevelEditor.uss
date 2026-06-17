@@ -16,6 +16,22 @@
     margin-bottom: 6px;
 }
 
+/* Collapsible section (Foldout) */
+.le-foldout {
+    margin-bottom: 8px;
+    padding: 4px 6px 6px 6px;
+    background-color: rgba(0, 0, 0, 0.15);
+    border-radius: 4px;
+}
+
+.le-foldout > Toggle {
+    -unity-font-style: bold;
+}
+
+.le-foldout .unity-foldout__content {
+    margin-left: 0;
+}
+
 .le-row {
     flex-direction: row;
     align-items: center;
@@ -208,6 +224,30 @@
     color: rgb(180, 180, 180);
 }
 
+.le-help-button {
+    position: absolute;
+    top: 2px;
+    right: 2px;
+    width: 20px;
+    height: 20px;
+    padding: 0;
+    border-radius: 10px;
+    -unity-font-style: bold;
+    -unity-text-align: middle-center;
+}
+
+.le-help-popup {
+    position: absolute;
+    top: 26px;
+    right: 4px;
+    max-width: 330px;
+    padding: 8px;
+    background-color: rgb(56, 56, 56);
+    border-width: 1px;
+    border-color: rgba(0, 0, 0, 0.6);
+    border-radius: 5px;
+}
+
 /* ---- Log footer ---- */
 
 .le-log {
@@ -219,10 +259,27 @@
     background-color: rgba(0, 0, 0, 0.2);
 }
 
+.le-log--collapsed {
+    height: auto;
+}
+
+.le-log__header {
+    flex-direction: row;
+    align-items: center;
+    margin-bottom: 2px;
+}
+
 .le-log__title {
     -unity-font-style: bold;
     font-size: 11px;
-    margin-bottom: 2px;
+}
+
+.le-log__btn {
+    height: 18px;
+    font-size: 10px;
+    padding-left: 6px;
+    padding-right: 6px;
+    margin-left: 4px;
 }
 
 .le-log__scroll {

@@ -23,6 +23,8 @@ namespace Code.LevelEditor.Editor
         private BlockPaletteView _palette;
         private BlockDragController _dragController;
         private LogView _log;
+        private VisualElement _hintsPopup;
+        private bool _hintsVisible;
 
         private IntegerField _newIndexField;
         private TextField _newNameField;
@@ -64,6 +66,8 @@ namespace Code.LevelEditor.Editor
             _log = new LogView();
             rootVisualElement.Add(_log);
 
+            BuildHelpOverlay();
+
             LoadLevels();
             RefreshDropdown();
             RefreshPalette();
@@ -76,11 +80,19 @@ namespace Code.LevelEditor.Editor
 
         private void RefreshPalette() => _palette?.SetLibrary(LoadLibrary());
 
+        /// <summary>A collapsible (vertical) section. State is remembered via viewDataKey.</summary>
+        private static Foldout MakeSection(string title, string viewDataKey)
+        {
+            var fold = new Foldout { text = title, value = true, viewDataKey = viewDataKey };
+            fold.AddToClassList("le-foldout");
+            return fold;
+        }
+
         // ---- Select / delete ----
 
         private VisualElement BuildSelectSection()
         {
-            var box = LevelEditorStyles.Section("Select Level");
+            var box = MakeSection("Select Level", "le-fold-select");
 
             _levelDropdown = new DropdownField("Level");
             _levelDropdown.RegisterValueChangedCallback(_ =>
@@ -146,7 +158,7 @@ namespace Code.LevelEditor.Editor
 
         private VisualElement BuildCreateSection()
         {
-            var box = LevelEditorStyles.Section("Create Level");
+            var box = MakeSection("Create Level", "le-fold-create");
 
             _newIndexField = new IntegerField("Level Index") { value = 1 };
             _newNameField = new TextField("Name") { value = "NewLevel" };
@@ -200,7 +212,7 @@ namespace Code.LevelEditor.Editor
                 return;
             }
 
-            var box = LevelEditorStyles.Section($"Editing: {_selected.name}");
+            var box = MakeSection($"Editing: {_selected.name}", "le-fold-editing");
 
             var nameRow = new VisualElement();
             nameRow.AddToClassList("le-row");
@@ -232,8 +244,6 @@ namespace Code.LevelEditor.Editor
             sizeRow.Add(resize);
             box.Add(sizeRow);
 
-            box.Add(BuildHints());
-
             _inspector.Add(box);
 
             _grid = new LevelGridView();
@@ -247,28 +257,56 @@ namespace Code.LevelEditor.Editor
             _inspector.Add(gridScroll);
         }
 
-        private VisualElement BuildHints()
+        private static readonly string[] HintLines =
         {
-            var box = new VisualElement();
-            box.AddToClassList("le-hints");
+            "Palette → drag onto grid to place a block",
+            "LMB drag — move a block / object",
+            "Ctrl + LMB — select cells (range)",
+            "RMB — block menu (rotate / copy / paste / clear)",
+            "Ctrl + C / Ctrl + V — copy / paste selected cells",
+            "Backspace / Delete — clear selected cells"
+        };
 
-            box.Add(new Label("Controls") { name = "hints-title" });
-            foreach (var line in new[]
-            {
-                "Palette → drag onto grid to place a block",
-                "LMB drag — move a block / object",
-                "Ctrl + LMB — select cells (range)",
-                "RMB — block menu (rotate / copy / paste / clear)",
-                "Ctrl + C / Ctrl + V — copy / paste selected cells",
-                "Backspace / Delete — clear selected cells"
-            })
+        private void BuildHelpOverlay()
+        {
+            _hintsPopup = new VisualElement();
+            _hintsPopup.AddToClassList("le-help-popup");
+            _hintsPopup.style.display = DisplayStyle.None;
+
+            _hintsPopup.Add(new Label("Controls") { name = "hints-title" });
+            foreach (var line in HintLines)
             {
                 var label = new Label("• " + line);
                 label.AddToClassList("le-hints__line");
-                box.Add(label);
+                _hintsPopup.Add(label);
             }
 
-            return box;
+            rootVisualElement.Add(_hintsPopup);
+
+            var help = new Button(ToggleHints) { text = "?", tooltip = "Controls" };
+            help.AddToClassList("le-help-button");
+            rootVisualElement.Add(help);
+
+            // Dismiss when clicking outside the popup/button.
+            rootVisualElement.RegisterCallback<PointerDownEvent>(evt =>
+            {
+                if (!_hintsVisible)
+                    return;
+
+                var target = evt.target as VisualElement;
+                if (target != null && (_hintsPopup.Contains(target) || help.Contains(target)))
+                    return;
+
+                SetHintsVisible(false);
+            }, TrickleDown.TrickleDown);
+        }
+
+        private void ToggleHints() => SetHintsVisible(!_hintsVisible);
+
+        private void SetHintsVisible(bool visible)
+        {
+            _hintsVisible = visible;
+            _hintsPopup.style.display = visible ? DisplayStyle.Flex : DisplayStyle.None;
         }
 
         private void RenameSelected()
