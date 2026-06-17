@@ -88,7 +88,3 @@ The grid is stored as a flat, row-major `LevelCell[]` (Unity cannot serialize 2D
 - Zenject (dependency injection)
 - DOTween (runtime animation)
 - Odin Inspector (serialization in `SaveLoadService`)
-
-## License
-
-See [LICENSE](LICENSE).
