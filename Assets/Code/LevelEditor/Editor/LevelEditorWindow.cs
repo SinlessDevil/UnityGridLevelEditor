@@ -260,9 +260,34 @@ namespace Code.LevelEditor.Editor
             // Fresh undo history per opened level (reset on level switch / rename).
             _history.Begin(_selected);
 
+            _inspector.Add(BuildZoomToolbar());
+
             var gridScroll = new ScrollView(ScrollViewMode.VerticalAndHorizontal);
             gridScroll.Add(_grid);
             _inspector.Add(gridScroll);
+        }
+
+        /// <summary>Zoom controls for the grid (−/＋/1:1 plus a live percentage label). Ctrl+wheel also zooms.</summary>
+        private VisualElement BuildZoomToolbar()
+        {
+            var row = new VisualElement();
+            row.AddToClassList("le-zoom-row");
+
+            var label = new Label { name = "zoom-label" };
+            label.AddToClassList("le-zoom-label");
+
+            void UpdateLabel() => label.text = $"{Mathf.RoundToInt(_grid.Zoom * 100f)}%";
+
+            row.Add(new Label("Zoom") { name = "zoom-title" });
+            row.Add(new Button(() => _grid.ZoomOut()) { text = "－", tooltip = "Zoom out" });
+            row.Add(label);
+            row.Add(new Button(() => _grid.ZoomIn()) { text = "＋", tooltip = "Zoom in" });
+            row.Add(new Button(() => _grid.ResetZoom()) { text = "1:1", tooltip = "Reset zoom" });
+
+            _grid.ZoomChanged += UpdateLabel;
+            UpdateLabel();
+
+            return row;
         }
 
         private static readonly string[] HintLines =
@@ -273,7 +298,8 @@ namespace Code.LevelEditor.Editor
             "RMB — block menu (rotate / copy / paste / clear)",
             "Ctrl + C / Ctrl + V — copy / paste selected cells",
             "Ctrl + Z / Ctrl + Y — undo / redo",
-            "Backspace / Delete — clear selected cells"
+            "Backspace / Delete — clear selected cells",
+            "Ctrl + Mouse Wheel — zoom the grid (or use −/＋)"
         };
 
         private void BuildHelpOverlay()

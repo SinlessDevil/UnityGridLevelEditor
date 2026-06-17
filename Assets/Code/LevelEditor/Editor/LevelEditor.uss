@@ -51,6 +51,34 @@
     -unity-font-style: bold;
 }
 
+/* ---- Zoom toolbar ---- */
+
+.le-zoom-row {
+    flex-direction: row;
+    align-items: center;
+    justify-content: center;
+    margin-bottom: 6px;
+}
+
+.le-zoom-row Button {
+    width: 30px;
+    height: 22px;
+    margin-left: 3px;
+    -unity-font-style: bold;
+    -unity-text-align: middle-center;
+}
+
+#zoom-title {
+    margin-right: 6px;
+    -unity-font-style: bold;
+}
+
+.le-zoom-label {
+    min-width: 44px;
+    margin-left: 3px;
+    -unity-text-align: middle-center;
+}
+
 /* ---- Grid ---- */
 
 .le-grid {

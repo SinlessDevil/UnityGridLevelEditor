@@ -15,6 +15,20 @@ namespace Code.LevelEditor.Editor
     {
         private const float DragThreshold = 4f;
 
+        // Cell visuals scale by changing real layout size (not a transform), so all
+        // worldBound-based hit-testing / dragging keeps working and the ScrollView
+        // resizes its scrollbars correctly. These match the base .le-cell USS values.
+        private const float BaseCellSize = 64f;
+        private const float BaseIconSize = 56f;
+        private const float BaseArrowFont = 18f;
+        private const float BaseIdFont = 10f;
+
+        private const float MinZoom = 0.25f;
+        private const float MaxZoom = 2f;
+        private const float ZoomStep = 1.25f;
+
+        private float _zoom = 1f;
+
         private LevelMatrixEditor _level;
         private VisualElement[,] _cells;
 
@@ -77,6 +91,12 @@ namespace Code.LevelEditor.Editor
         public event Action UndoRequested;
         public event Action RedoRequested;
 
+        /// <summary>Raised after the zoom level changes, so the window can update its label.</summary>
+        public event Action ZoomChanged;
+
+        /// <summary>Current zoom factor (1 = 100%).</summary>
+        public float Zoom => _zoom;
+
         public IReadOnlyList<Vector2Int> Selection => _selection;
 
         /// <summary>
@@ -100,6 +120,72 @@ namespace Code.LevelEditor.Editor
             RegisterCallback<PointerCaptureOutEvent>(_ => CancelMove());
             RegisterCallback<GeometryChangedEvent>(_ => PositionPlates());
             RegisterCallback<KeyDownEvent>(OnKeyDown);
+            RegisterCallback<WheelEvent>(OnWheel);
+        }
+
+        // ---- Zoom ----
+
+        public void ZoomIn() => SetZoom(_zoom * ZoomStep);
+        public void ZoomOut() => SetZoom(_zoom / ZoomStep);
+        public void ResetZoom() => SetZoom(1f);
+
+        public void SetZoom(float zoom)
+        {
+            zoom = Mathf.Clamp(zoom, MinZoom, MaxZoom);
+            if (Mathf.Approximately(zoom, _zoom))
+                return;
+
+            _zoom = zoom;
+            ApplyZoom();
+            ZoomChanged?.Invoke();
+        }
+
+        /// <summary>Ctrl + mouse wheel zooms; a plain wheel keeps scrolling the grid.</summary>
+        private void OnWheel(WheelEvent evt)
+        {
+            if (!(evt.ctrlKey || evt.commandKey))
+                return;
+
+            if (evt.delta.y < 0f)
+                ZoomIn();
+            else
+                ZoomOut();
+
+            evt.StopPropagation();
+        }
+
+        /// <summary>Resizes every cell (and its decor) to the current zoom; plates re-layout via GeometryChanged.</summary>
+        private void ApplyZoom()
+        {
+            if (_cells == null)
+                return;
+
+            for (int y = 0; y < _level.Height; y++)
+            for (int x = 0; x < _level.Width; x++)
+                ApplyCellMetrics(_cells[x, y]);
+        }
+
+        /// <summary>Applies zoom-scaled size/fonts to a single cell and its children.</summary>
+        private void ApplyCellMetrics(VisualElement cell)
+        {
+            float size = BaseCellSize * _zoom;
+            cell.style.width = size;
+            cell.style.height = size;
+
+            var icon = cell.Q<VisualElement>("icon");
+            if (icon != null)
+            {
+                icon.style.width = BaseIconSize * _zoom;
+                icon.style.height = BaseIconSize * _zoom;
+            }
+
+            var arrow = cell.Q<Label>("arrow");
+            if (arrow != null)
+                arrow.style.fontSize = BaseArrowFont * _zoom;
+
+            var id = cell.Q<Label>("id");
+            if (id != null)
+                id.style.fontSize = BaseIdFont * _zoom;
         }
 
         public void SetLevel(LevelMatrixEditor level)
@@ -184,6 +270,7 @@ namespace Code.LevelEditor.Editor
             var pos = new Vector2Int(x, y);
             cell.RegisterCallback<PointerDownEvent>(evt => OnCellPointerDown(evt, pos));
 
+            ApplyCellMetrics(cell);
             return cell;
         }
 
@@ -274,6 +361,7 @@ namespace Code.LevelEditor.Editor
         private ObjectPlate BuildPlate(List<Vector2Int> cells, BlockDataEditor block)
         {
             var plate = new ObjectPlate { tooltip = block.ID };
+            plate.SetZoom(_zoom);
             float angle = _level.GetCell(cells[0]).Rotation.eulerAngles.y;
             plate.SetContent(block.Icon, block.ID, angle);
             plate.RegisterCallback<PointerDownEvent>(evt => OnPlatePointerDown(evt, cells));
@@ -287,7 +375,10 @@ namespace Code.LevelEditor.Editor
                 return;
 
             foreach (var info in _plates)
+            {
+                info.Element.SetZoom(_zoom);
                 PositionPlate(info.Element, info.Cells);
+            }
         }
 
         /// <summary>Places a plate over its cells and feeds the exact footprint to it.</summary>

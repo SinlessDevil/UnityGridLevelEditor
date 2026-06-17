@@ -31,6 +31,7 @@ namespace Code.LevelEditor.Editor
         private Sprite _icon;
         private string _id;
         private float _arrowAngle;
+        private float _zoom = 1f;
 
         public ObjectPlate(bool ghost = false)
         {
@@ -59,6 +60,9 @@ namespace Code.LevelEditor.Editor
             _arrowAngle = arrowAngle;
             RebuildDecor();
         }
+
+        /// <summary>Scales the decor (icon padding, arrow/id fonts) to match the grid zoom.</summary>
+        public void SetZoom(float zoom) => _zoom = zoom;
 
         /// <summary>Sets the cell rects (local space) and their grid coords (for seam detection).</summary>
         public void SetShape(Rect[] rects, Vector2Int[] coords)
@@ -166,7 +170,7 @@ namespace Code.LevelEditor.Editor
 
         private void AddIcon(Rect rect)
         {
-            const float pad = 5f;
+            float pad = 5f * _zoom;
             var icon = new VisualElement { pickingMode = PickingMode.Ignore };
             icon.AddToClassList("le-plate__tile");
             icon.style.backgroundImage = Background.FromSprite(_icon);
@@ -181,8 +185,9 @@ namespace Code.LevelEditor.Editor
         {
             var arrow = new Label("↑") { pickingMode = PickingMode.Ignore };
             arrow.AddToClassList("le-plate__arrow");
+            arrow.style.fontSize = 18f * _zoom;
             arrow.style.left = cell.center.x;
-            arrow.style.top = cell.yMin - 2f;
+            arrow.style.top = cell.yMin - 2f * _zoom;
             arrow.style.translate = new Translate(Length.Percent(-50), 0);
             arrow.style.rotate = new Rotate(new Angle(_arrowAngle, AngleUnit.Degree));
             _decorLayer.Add(arrow);
@@ -192,8 +197,9 @@ namespace Code.LevelEditor.Editor
         {
             var label = new Label(_id) { pickingMode = PickingMode.Ignore };
             label.AddToClassList("le-plate__id");
+            label.style.fontSize = 10f * _zoom;
             label.style.left = cell.center.x;
-            label.style.top = cell.yMax - 14f;
+            label.style.top = cell.yMax - 14f * _zoom;
             label.style.translate = new Translate(Length.Percent(-50), 0);
             _decorLayer.Add(label);
         }
