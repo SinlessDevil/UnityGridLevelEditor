@@ -1,4 +1,6 @@
 using System;
+using UnityEditor;
+using UnityEngine;
 using UnityEngine.UIElements;
 
 namespace Code.LevelEditor.Editor
@@ -12,7 +14,10 @@ namespace Code.LevelEditor.Editor
         private readonly Action<VisualElement, BlockDataEditor> _attachDrag;
         private readonly VisualElement _tilesContainer;
 
-        public BlockPaletteView(Action<VisualElement, BlockDataEditor> attachDrag)
+        public BlockPaletteView(
+            Action<VisualElement, BlockDataEditor> attachDrag,
+            Action onEditBlocks,
+            Action onRefresh)
         {
             _attachDrag = attachDrag;
             AddToClassList("le-palette");
@@ -21,6 +26,17 @@ namespace Code.LevelEditor.Editor
             title.AddToClassList("le-section__title");
             Add(title);
 
+            var buttons = new VisualElement();
+            buttons.AddToClassList("le-row");
+
+            var edit = new Button(onEditBlocks) { text = "Block Editor", tooltip = "Open the block editor" };
+            edit.style.flexGrow = 1;
+            buttons.Add(edit);
+
+            buttons.Add(BuildRefreshButton(onRefresh));
+
+            Add(buttons);
+
             var scroll = new ScrollView();
             scroll.style.flexGrow = 1;
             Add(scroll);
@@ -28,6 +44,32 @@ namespace Code.LevelEditor.Editor
             _tilesContainer = new VisualElement();
             _tilesContainer.AddToClassList("le-palette__tiles");
             scroll.Add(_tilesContainer);
+        }
+
+        private static Button BuildRefreshButton(Action onRefresh)
+        {
+            var refresh = new Button(onRefresh) { tooltip = "Refresh palette" };
+
+            var icon = EditorGUIUtility.IconContent("Refresh").image as Texture2D;
+            if (icon != null)
+            {
+                var image = new Image
+                {
+                    image = icon,
+                    scaleMode = ScaleMode.ScaleToFit,
+                    pickingMode = PickingMode.Ignore
+                };
+                image.style.width = 16;
+                image.style.height = 16;
+                refresh.Add(image);
+                refresh.style.width = 26;
+            }
+            else
+            {
+                refresh.text = "Refresh";
+            }
+
+            return refresh;
         }
 
         public void SetLibrary(BlockLibrary library)

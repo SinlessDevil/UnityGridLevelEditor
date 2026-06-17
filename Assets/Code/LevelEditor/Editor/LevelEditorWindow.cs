@@ -51,7 +51,7 @@ namespace Code.LevelEditor.Editor
             split.style.flexGrow = 1;
             rootVisualElement.Add(split);
 
-            _palette = new BlockPaletteView(_dragController.AttachTile);
+            _palette = new BlockPaletteView(_dragController.AttachTile, BlockLibraryWindow.ShowWindow, RefreshPalette);
             split.Add(_palette);
 
             var scroll = new ScrollView();
@@ -366,7 +366,7 @@ namespace Code.LevelEditor.Editor
             {
                 EditorUtility.SetDirty(_selected);
                 _grid.RefreshCells();
-            }, _log.Log);
+            }, _log.Log, cells => _grid.FlashCells(cells));
         }
 
         // ---- Data loading ----

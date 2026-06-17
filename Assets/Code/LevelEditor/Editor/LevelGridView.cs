@@ -243,6 +243,16 @@ namespace Code.LevelEditor.Editor
                 var block = _level.GetCell(cells[0]).Block;
 
                 var plate = BuildPlate(cells, block);
+
+                bool selected = false;
+                foreach (var c in cells)
+                    if (_selection.Contains(c))
+                    {
+                        selected = true;
+                        break;
+                    }
+                plate.EnableInClassList("le-plate--selected", selected);
+
                 _plateLayer.Add(plate);
                 _plates.Add(new PlateInfo(cells, plate));
             }
@@ -362,6 +372,37 @@ namespace Code.LevelEditor.Editor
             _cells != null && _level != null &&
             p.x >= 0 && p.x < _level.Width && p.y >= 0 && p.y < _level.Height;
 
+        /// <summary>Briefly blinks the given cells red (used to signal "no space here").</summary>
+        public void FlashCells(IEnumerable<Vector2Int> cells)
+        {
+            var targets = new List<VisualElement>();
+            foreach (var c in cells)
+                if (IsValid(c))
+                    targets.Add(_cells[c.x, c.y]);
+
+            if (targets.Count == 0)
+                return;
+
+            const string flashClass = "le-cell--flash";
+            const int toggles = 6;
+            int count = 0;
+
+            IVisualElementScheduledItem item = null;
+            item = schedule.Execute(() =>
+            {
+                bool on = count % 2 == 0;
+                foreach (var t in targets)
+                    t.EnableInClassList(flashClass, on);
+
+                if (++count >= toggles)
+                {
+                    foreach (var t in targets)
+                        t.RemoveFromClassList(flashClass);
+                    item?.Pause();
+                }
+            }).Every(110);
+        }
+
         // ---- Pointer: cells ----
 
         private void OnCellPointerDown(PointerDownEvent evt, Vector2Int pos)
@@ -429,6 +470,17 @@ namespace Code.LevelEditor.Editor
 
             if (evt.button != 0)
                 return;
+
+            // Ctrl+LMB selects the whole object (consistent with cell selection).
+            if (evt.ctrlKey || evt.commandKey)
+            {
+                _selection.Clear();
+                _selection.AddRange(cells);
+                _selectionStart = null;
+                RefreshCells();
+                evt.StopPropagation();
+                return;
+            }
 
             var anchor = TryGetCellAt(evt.position, out var hit) ? hit : cells[0];
             BeginPointerDrag(anchor, evt.pointerId, evt.position);
@@ -509,11 +561,9 @@ namespace Code.LevelEditor.Editor
             }
             else
             {
-                var anchorCell = _level.GetCell(_moveSource.Value);
-                _selection.Clear();
-                if (anchorCell.InstanceId != 0)
-                    _selection.AddRange(GetInstanceCells(anchorCell.InstanceId));
+                // Plain click (no drag): clear selection, same for cells and objects.
                 _selectionStart = null;
+                _selection.Clear();
                 RefreshCells();
             }
 
@@ -1002,9 +1052,9 @@ namespace Code.LevelEditor.Editor
             }
 
             if (blocked > 0 && pasted == 0)
-                Log?.Invoke("Can't paste into a solid object", LogLevel.Error);
+                Log?.Invoke("Can't paste here: no free space", LogLevel.Error);
             else if (blocked > 0)
-                Log?.Invoke($"Pasted {pasted}, {blocked} blocked by solid objects", LogLevel.Info);
+                Log?.Invoke($"Pasted {pasted}, {blocked} cell(s) skipped (no space)", LogLevel.Info);
             else
                 Log?.Invoke($"Pasted {pasted} cell(s)", LogLevel.Success);
         }

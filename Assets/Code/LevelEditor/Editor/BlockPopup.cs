@@ -20,6 +20,7 @@ namespace Code.LevelEditor.Editor
         private List<Vector2Int> _selection;
         private Action _onChanged;
         private Action<string, LogLevel> _log;
+        private Action<IEnumerable<Vector2Int>> _flash;
 
         private string _blockFilter = "";
         private VisualElement _blockListContainer;
@@ -31,7 +32,8 @@ namespace Code.LevelEditor.Editor
             BlockLibrary library,
             IEnumerable<Vector2Int> selection,
             Action onChanged,
-            Action<string, LogLevel> log)
+            Action<string, LogLevel> log,
+            Action<IEnumerable<Vector2Int>> flash)
         {
             if (_current != null)
                 _current.Close();
@@ -42,6 +44,7 @@ namespace Code.LevelEditor.Editor
             _current._selection = selection.ToList();
             _current._onChanged = onChanged;
             _current._log = log;
+            _current._flash = flash;
 
             _current.ShowPopup();
             _current.position = new Rect(activatorRect.position, new Vector2(360, 560));
@@ -244,6 +247,19 @@ namespace Code.LevelEditor.Editor
 
         private void ApplyBlock(BlockDataEditor block)
         {
+            if (block == null || _selection == null || _selection.Count == 0)
+            {
+                _log?.Invoke("Select a cell first", LogLevel.Info);
+                return;
+            }
+
+            if (block.IsMultiCell)
+            {
+                ApplyMultiCellBlock(block);
+                return;
+            }
+
+            // Single-cell block: paint every selected cell.
             foreach (var pos in _selection)
             {
                 if (!_level.InBounds(pos))
@@ -256,6 +272,43 @@ namespace Code.LevelEditor.Editor
             }
 
             Changed();
+        }
+
+        private void ApplyMultiCellBlock(BlockDataEditor block)
+        {
+            // The clicked cell is the footprint center; expand the shape around it.
+            var anchor = _selection[0];
+
+            var targets = new List<Vector2Int>();
+            bool free = true;
+            foreach (var offset in block.Footprint)
+            {
+                var target = anchor + offset;
+                targets.Add(target);
+
+                if (!_level.InBounds(target) || _level.GetCell(target).Block != null)
+                    free = false;
+            }
+
+            // Unlike drag-and-drop, the popup never overwrites — it needs empty cells.
+            if (!free)
+            {
+                _flash?.Invoke(targets);
+                _log?.Invoke($"No space to place '{block.ID}' here", LogLevel.Error);
+                return;
+            }
+
+            int instanceId = _level.NewInstanceId();
+            foreach (var target in targets)
+            {
+                var cell = _level.GetCell(target);
+                cell.Block = block;
+                cell.Rotation = Quaternion.identity;
+                cell.InstanceId = instanceId;
+            }
+
+            Changed();
+            _log?.Invoke($"Placed '{block.ID}'", LogLevel.Success);
         }
 
         private void ApplyRotation(float angle)
@@ -320,9 +373,9 @@ namespace Code.LevelEditor.Editor
                 Changed();
 
             if (blocked > 0 && pasted == 0)
-                _log?.Invoke("Can't paste into a solid object", LogLevel.Error);
+                _log?.Invoke("Can't paste here: no free space", LogLevel.Error);
             else if (blocked > 0)
-                _log?.Invoke($"Pasted {pasted}, {blocked} blocked by solid objects", LogLevel.Info);
+                _log?.Invoke($"Pasted {pasted}, {blocked} cell(s) skipped (no space)", LogLevel.Info);
             else
                 _log?.Invoke($"Pasted {pasted} cell(s)", LogLevel.Success);
         }

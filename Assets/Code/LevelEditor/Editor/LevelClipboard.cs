@@ -5,11 +5,26 @@ namespace Code.LevelEditor.Editor
 {
     /// <summary>
     /// Shared copy/paste buffer for grid cells. Used by both the keyboard shortcuts
-    /// (Ctrl+C / Ctrl+V) and the block popup.
+    /// (Ctrl+C / Ctrl+V) and the block popup. Multi-cell objects are preserved:
+    /// a copied object is pasted as one fresh object instance.
     /// </summary>
     public static class LevelClipboard
     {
-        private static readonly Dictionary<Vector2Int, LevelCell> Cells = new();
+        private readonly struct Copied
+        {
+            public readonly BlockDataEditor Block;
+            public readonly Quaternion Rotation;
+            public readonly int InstanceId;
+
+            public Copied(BlockDataEditor block, Quaternion rotation, int instanceId)
+            {
+                Block = block;
+                Rotation = rotation;
+                InstanceId = instanceId;
+            }
+        }
+
+        private static readonly Dictionary<Vector2Int, Copied> Cells = new();
 
         public static int Count => Cells.Count;
         public static bool HasData => Cells.Count > 0;
@@ -24,14 +39,15 @@ namespace Code.LevelEditor.Editor
                     continue;
 
                 var c = level.GetCell(pos);
-                Cells[pos] = new LevelCell { Block = c.Block, Rotation = c.Rotation };
+                Cells[pos] = new Copied(c.Block, c.Rotation, c.InstanceId);
             }
         }
 
         /// <summary>
         /// Pastes the buffer with its first cell aligned to <paramref name="anchor"/>.
-        /// Cells belonging to a solid object are skipped. Returns how many cells were
-        /// written and how many were blocked.
+        /// Copied objects are placed only on free cells (all-or-nothing, with a new
+        /// instance id); standalone cells overwrite empty/standalone targets but never
+        /// objects. Returns how many cells were written and how many were blocked.
         /// </summary>
         public static (int pasted, int blocked) Paste(LevelMatrixEditor level, Vector2Int anchor)
         {
@@ -50,23 +66,75 @@ namespace Code.LevelEditor.Editor
             if (!found)
                 return (0, 0);
 
-            int pasted = 0, blocked = 0;
+            var delta = anchor - firstSource;
+
+            var objectGroups = new Dictionary<int, List<KeyValuePair<Vector2Int, Copied>>>();
+            var standalone = new List<KeyValuePair<Vector2Int, Copied>>();
+
             foreach (var pair in Cells)
             {
-                var target = anchor + (pair.Key - firstSource);
-                if (!level.InBounds(target))
+                if (pair.Value.InstanceId != 0)
+                {
+                    if (!objectGroups.TryGetValue(pair.Value.InstanceId, out var list))
+                        objectGroups[pair.Value.InstanceId] = list = new List<KeyValuePair<Vector2Int, Copied>>();
+                    list.Add(pair);
+                }
+                else
+                {
+                    standalone.Add(pair);
+                }
+            }
+
+            int pasted = 0, blocked = 0;
+
+            // Each copied object becomes one new instance, only if all its cells are free.
+            foreach (var group in objectGroups.Values)
+            {
+                bool free = true;
+                foreach (var pair in group)
+                {
+                    var t = pair.Key + delta;
+                    if (!level.InBounds(t) || level.GetCell(t).Block != null)
+                    {
+                        free = false;
+                        break;
+                    }
+                }
+
+                if (!free)
+                {
+                    blocked += group.Count;
+                    continue;
+                }
+
+                int newId = level.NewInstanceId();
+                foreach (var pair in group)
+                {
+                    var c = level.GetCell(pair.Key + delta);
+                    c.Block = pair.Value.Block;
+                    c.Rotation = pair.Value.Rotation;
+                    c.InstanceId = newId;
+                    pasted++;
+                }
+            }
+
+            // Standalone cells: overwrite empty/standalone targets, never break objects.
+            foreach (var pair in standalone)
+            {
+                var t = pair.Key + delta;
+                if (!level.InBounds(t))
                     continue;
 
-                var cell = level.GetCell(target);
-                if (cell.InstanceId != 0)
+                var c = level.GetCell(t);
+                if (c.InstanceId != 0)
                 {
                     blocked++;
                     continue;
                 }
 
-                cell.Block = pair.Value.Block;
-                cell.Rotation = pair.Value.Rotation;
-                cell.InstanceId = 0;
+                c.Block = pair.Value.Block;
+                c.Rotation = pair.Value.Rotation;
+                c.InstanceId = 0;
                 pasted++;
             }
 
