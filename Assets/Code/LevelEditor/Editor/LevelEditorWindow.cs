@@ -413,12 +413,16 @@ namespace Code.LevelEditor.Editor
             Vector2 screenPos = position.position + panelMouse;
             var activator = new Rect(screenPos, Vector2.zero);
 
-            BlockPopup.Show(activator, _selected, library, _grid.Selection.ToList(), () =>
-            {
-                EditorUtility.SetDirty(_selected);
-                _grid.RefreshCells();
-                _history.Record();
-            }, _log.Log, cells => _grid.FlashCells(cells));
+            BlockPopup.Show(activator, _selected, library, _grid.Selection.ToList(),
+                onChanged: () =>
+                {
+                    EditorUtility.SetDirty(_selected);
+                    _grid.RefreshCells();
+                    _history.Record();
+                },
+                onPreview: () => _grid.RefreshCells(),
+                _log.Log,
+                cells => _grid.FlashCells(cells));
         }
 
         // ---- Data loading ----
