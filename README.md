@@ -41,9 +41,9 @@ Levels and blocks are plain ScriptableObjects under `Assets/Resources/StaticData
 - Optional auto-switching to the next level on a configurable interval.
 
 <table><tr>
-  <td><img src="https://github.com/SinlessDevil/Grid_Level_Editor/blob/main/Images/4.png" width="300"/></td>
-  <td><img src="https://github.com/SinlessDevil/Grid_Level_Editor/blob/main/Images/5.png" width="300"/></td>
-  <td><img src="https://github.com/SinlessDevil/Grid_Level_Editor/blob/main/Images/6.png" width="300"/></td>
+  <td><img src="https://github.com/user-attachments/assets/c594bd66-1f76-4ff5-9d24-75376c304b27" width="300"/></td>
+  <td><img src="https://github.com/user-attachments/assets/10ac3cde-68a7-4fca-baf4-93497ebcb9f4" width="300"/></td>
+  <td><img src="https://github.com/user-attachments/assets/56c9b7b2-107f-4769-b2e6-02951321ed9a" width="300"/></td>
 </tr></table>
 
 ## Controls & Shortcuts
