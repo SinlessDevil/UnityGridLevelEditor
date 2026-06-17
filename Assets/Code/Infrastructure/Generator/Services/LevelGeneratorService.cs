@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using UnityEngine;
 using Code.Infrastructure.Generator.Factory;
 using Code.Infrastructure.Services.StaticData;
@@ -10,6 +11,10 @@ namespace Code.Infrastructure.Generator.Services
 {
     public class LevelGeneratorService : ILevelGeneratorService
     {
+        // Occupied tiles use a blue checkerboard to highlight where blocks stand.
+        private static readonly Color OccupiedColorEven = new Color(0.30f, 0.55f, 0.95f);
+        private static readonly Color OccupiedColorNotEven = new Color(0.18f, 0.34f, 0.66f);
+
         private Tile[,] _tileMatrix;
         private GameObject _rootMapHolder;
         private int _currentLevelIndex = 1;
@@ -91,12 +96,11 @@ namespace Code.Infrastructure.Generator.Services
 
             float baseDelay = 0.02f;
 
+            // 1) Floor tiles.
             for (int y = 0; y < height; y++)
             {
                 for (int x = 0; x < width; x++)
                 {
-                    int invertedY = height - 1 - y;
-
                     Vector3 spawnPosition = new Vector3(
                         x - width / 2,
                         0f,
@@ -106,27 +110,120 @@ namespace Code.Infrastructure.Generator.Services
                     Tile tile = _tileFactory.CreateTile(_rootMapHolder);
                     tile.transform.localPosition = spawnPosition;
 
+                    LevelCell cell = levelData.Cells[x, height - 1 - y];
+                    bool occupied = cell?.Block != null;
                     bool isEven = (x + y) % 2 == 0;
-                    Color tileColor = isEven ? tileBalanceData.ColorEven : tileBalanceData.ColorNotEven;
+
+                    Color tileColor = occupied
+                        ? (isEven ? OccupiedColorEven : OccupiedColorNotEven)
+                        : (isEven ? tileBalanceData.ColorEven : tileBalanceData.ColorNotEven);
                     tile.SetColor(tileColor);
                     tile.SetUpScale();
 
                     float delay = (x + y) * baseDelay;
                     DOVirtual.DelayedCall(delay, tile.PlayAnimationShowTile);
 
-                    LevelCell cellData = levelData.Cells[x, invertedY];
-                    if (cellData != null && cellData.Block != null)
-                    {
-                        GameObject block = _blockFactory.CreateBlock(cellData.Block.Prefab, tile.gameObject);
-                        block.transform.rotation = cellData.Rotation;
-
-                        tile.SetBlock(block);
-                        DOVirtual.DelayedCall(delay, tile.PlayAnimationShowBlock);
-                    }
-
                     _tileMatrix[x, y] = tile;
                 }
             }
+
+            // 2) Blocks: one per multi-cell object (at its center), one per standalone cell.
+            SpawnBlocks(levelData, width, height, baseDelay);
+        }
+
+        private void SpawnBlocks(LevelDataDTO levelData, int width, int height, float baseDelay)
+        {
+            var objects = new Dictionary<int, List<Vector2Int>>();
+
+            for (int cy = 0; cy < height; cy++)
+            {
+                for (int cx = 0; cx < width; cx++)
+                {
+                    LevelCell cell = levelData.Cells[cx, cy];
+                    if (cell?.Block == null)
+                        continue;
+
+                    if (cell.InstanceId == 0)
+                    {
+                        SpawnBlock(new List<Vector2Int> { new Vector2Int(cx, cy) }, cell, height, baseDelay);
+                        continue;
+                    }
+
+                    if (!objects.TryGetValue(cell.InstanceId, out var list))
+                        objects[cell.InstanceId] = list = new List<Vector2Int>();
+                    list.Add(new Vector2Int(cx, cy));
+                }
+            }
+
+            foreach (var group in objects.Values)
+            {
+                LevelCell sample = levelData.Cells[group[0].x, group[0].y];
+                SpawnBlock(group, sample, height, baseDelay);
+            }
+        }
+
+        // Spawns a single block at the geometric center of its cells (the midpoint of all
+        // the object's tiles). A standalone cell is just a one-cell object.
+        private void SpawnBlock(List<Vector2Int> cells, LevelCell cellData, int height, float baseDelay)
+        {
+            Vector2 centroidCell = Vector2.zero;
+            Vector3 centerWorld = Vector3.zero;
+            int counted = 0;
+
+            foreach (var c in cells)
+            {
+                centroidCell += new Vector2(c.x, c.y);
+
+                Tile t = TileForCell(c, height);
+                if (t != null)
+                {
+                    centerWorld += t.transform.position;
+                    counted++;
+                }
+            }
+
+            if (counted == 0)
+                return;
+
+            centroidCell /= cells.Count;
+            centerWorld /= counted;
+
+            // Cell nearest the centroid owns the block (parent + animation).
+            Vector2Int rep = cells[0];
+            float bestDist = float.MaxValue;
+            foreach (var c in cells)
+            {
+                float d = (new Vector2(c.x, c.y) - centroidCell).sqrMagnitude;
+                if (d < bestDist)
+                {
+                    bestDist = d;
+                    rep = c;
+                }
+            }
+
+            Tile repTile = TileForCell(rep, height);
+            if (repTile == null)
+                return;
+
+            GameObject block = _blockFactory.CreateBlock(cellData.Block.Prefab, repTile.gameObject);
+            block.transform.rotation = cellData.Rotation;
+
+            repTile.SetBlock(block);
+            // SetBlock snaps the block to repTile's anchor; shift it to the object's center.
+            block.transform.position += centerWorld - repTile.transform.position;
+
+            int repLoopY = height - 1 - rep.y;
+            float delay = (rep.x + repLoopY) * baseDelay;
+            DOVirtual.DelayedCall(delay, repTile.PlayAnimationShowBlock);
+        }
+
+        private Tile TileForCell(Vector2Int cell, int height)
+        {
+            int ty = height - 1 - cell.y;
+            if (cell.x < 0 || cell.x >= _tileMatrix.GetLength(0) || ty < 0 || ty >= _tileMatrix.GetLength(1))
+                return null;
+
+            return _tileMatrix[cell.x, ty];
         }
 
         public void LoadNextLevel()
