@@ -225,6 +225,7 @@ namespace Code.LevelEditor.Editor
             _inspector.Add(box);
 
             _grid = new LevelGridView();
+            _grid.GhostHost = rootVisualElement;
             _grid.CellRightClicked += OnCellRightClicked;
             _grid.SetLevel(_selected);
 

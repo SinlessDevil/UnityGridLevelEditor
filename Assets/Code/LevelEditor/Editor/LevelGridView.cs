@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using UnityEditor;
 using UnityEngine;
 using UnityEngine.UIElements;
 
@@ -18,6 +19,14 @@ namespace Code.LevelEditor.Editor
         private Vector2Int? _selectionStart;
         private Vector2Int? _hoverCell;
 
+        // Drag-to-move state (left button drag of a filled cell onto another cell).
+        private const float DragThreshold = 4f;
+        private Vector2Int? _moveSource;
+        private Vector2 _pointerDownPos;
+        private bool _moving;
+        private int _movePointerId = -1;
+        private VisualElement _moveGhost;
+
         /// <summary>
         /// Raised on right click. Arguments are the clicked cell position and the
         /// mouse position in panel coordinates (for placing the popup).
@@ -25,6 +34,13 @@ namespace Code.LevelEditor.Editor
         public event Action<Vector2Int, Vector2> CellRightClicked;
 
         public IReadOnlyList<Vector2Int> Selection => _selection;
+
+        /// <summary>
+        /// Element the drag ghost is parented to. Should be the window root
+        /// (overlays in <c>panel.visualTree</c> render unreliably in an EditorWindow).
+        /// Falls back to the panel root if not set.
+        /// </summary>
+        public VisualElement GhostHost { get; set; }
 
         public LevelGridView()
         {
@@ -78,6 +94,12 @@ namespace Code.LevelEditor.Editor
 
         public void Rebuild()
         {
+            _moveGhost?.RemoveFromHierarchy();
+            _moveGhost = null;
+            _moveSource = null;
+            _moving = false;
+            _movePointerId = -1;
+
             Clear();
             _cells = null;
             _hoverCell = null;
@@ -134,41 +156,19 @@ namespace Code.LevelEditor.Editor
             cell.Add(id);
 
             var pos = new Vector2Int(x, y);
-            cell.RegisterCallback<MouseDownEvent>(evt => OnCellMouseDown(evt, pos));
+            cell.RegisterCallback<PointerDownEvent>(evt => OnCellPointerDown(evt, cell, pos));
+            cell.RegisterCallback<PointerMoveEvent>(OnCellPointerMove);
+            cell.RegisterCallback<PointerUpEvent>(evt => OnCellPointerUp(evt, cell));
+            cell.RegisterCallback<PointerCaptureOutEvent>(_ => CancelMove());
 
             return cell;
         }
 
-        private void OnCellMouseDown(MouseDownEvent evt, Vector2Int pos)
+        private void OnCellPointerDown(PointerDownEvent evt, VisualElement cell, Vector2Int pos)
         {
             bool ctrl = evt.ctrlKey || evt.commandKey;
 
-            if (evt.button == 0)
-            {
-                if (ctrl)
-                {
-                    if (!_selectionStart.HasValue)
-                    {
-                        _selectionStart = pos;
-                        _selection.Clear();
-                        _selection.Add(pos);
-                    }
-                    else
-                    {
-                        SelectRange(_selectionStart.Value, pos);
-                        _selectionStart = null;
-                    }
-                }
-                else
-                {
-                    _selectionStart = null;
-                    _selection.Clear();
-                }
-
-                RefreshCells();
-                evt.StopPropagation();
-            }
-            else if (evt.button == 1)
+            if (evt.button == 1)
             {
                 if (!_selection.Contains(pos))
                 {
@@ -177,9 +177,149 @@ namespace Code.LevelEditor.Editor
                     RefreshCells();
                 }
 
-                CellRightClicked?.Invoke(pos, evt.mousePosition);
+                CellRightClicked?.Invoke(pos, evt.position);
                 evt.StopPropagation();
+                return;
             }
+
+            if (evt.button != 0)
+                return;
+
+            if (ctrl)
+            {
+                if (!_selectionStart.HasValue)
+                {
+                    _selectionStart = pos;
+                    _selection.Clear();
+                    _selection.Add(pos);
+                }
+                else
+                {
+                    SelectRange(_selectionStart.Value, pos);
+                    _selectionStart = null;
+                }
+
+                RefreshCells();
+                evt.StopPropagation();
+                return;
+            }
+
+            // Plain left button: pending click-or-drag. We decide on move/up:
+            // moved past the threshold over a filled cell -> move; otherwise -> click.
+            _moveSource = pos;
+            _pointerDownPos = evt.position;
+            _moving = false;
+            _movePointerId = evt.pointerId;
+            cell.CapturePointer(evt.pointerId);
+            evt.StopPropagation();
+        }
+
+        private void OnCellPointerMove(PointerMoveEvent evt)
+        {
+            if (!_moveSource.HasValue || evt.pointerId != _movePointerId)
+                return;
+
+            if (!_moving)
+            {
+                if (Vector2.Distance(evt.position, _pointerDownPos) < DragThreshold)
+                    return;
+
+                var source = _level.GetCell(_moveSource.Value);
+                if (source?.Block == null)
+                    return; // nothing to carry; stays a click
+
+                _moving = true;
+                CreateMoveGhost(source.Block);
+            }
+
+            UpdateMoveGhost(evt.position);
+            SetHoverCell(TryGetCellAt(evt.position, out var cell) ? cell : (Vector2Int?)null);
+        }
+
+        private void OnCellPointerUp(PointerUpEvent evt, VisualElement cell)
+        {
+            if (!_moveSource.HasValue || evt.pointerId != _movePointerId)
+                return;
+
+            var source = _moveSource.Value;
+
+            if (_moving)
+            {
+                if (TryGetCellAt(evt.position, out var target) && target != source && _level.InBounds(target))
+                    MoveBlock(source, target);
+            }
+            else
+            {
+                // Treated as a plain click: clear selection (matches old behaviour).
+                _selectionStart = null;
+                _selection.Clear();
+                RefreshCells();
+            }
+
+            if (cell.HasPointerCapture(evt.pointerId))
+                cell.ReleasePointer(evt.pointerId);
+
+            EndMove();
+            evt.StopPropagation();
+        }
+
+        private void MoveBlock(Vector2Int source, Vector2Int target)
+        {
+            var from = _level.GetCell(source);
+            var to = _level.GetCell(target);
+
+            to.Block = from.Block;
+            to.Rotation = from.Rotation;
+
+            from.Block = null;
+            from.Rotation = Quaternion.identity;
+
+            EditorUtility.SetDirty(_level);
+            RefreshCells();
+        }
+
+        private void CancelMove()
+        {
+            if (_moveSource.HasValue)
+                EndMove();
+        }
+
+        private void EndMove()
+        {
+            _moveSource = null;
+            _moving = false;
+            _movePointerId = -1;
+            SetHoverCell(null);
+
+            if (_moveGhost != null)
+            {
+                _moveGhost.RemoveFromHierarchy();
+                _moveGhost = null;
+            }
+        }
+
+        private void CreateMoveGhost(BlockDataEditor block)
+        {
+            _moveGhost?.RemoveFromHierarchy();
+
+            _moveGhost = new VisualElement { pickingMode = PickingMode.Ignore };
+            _moveGhost.AddToClassList("le-drag-ghost");
+
+            if (block.Icon != null)
+                _moveGhost.style.backgroundImage = Background.FromSprite(block.Icon);
+
+            var host = GhostHost ?? panel?.visualTree;
+            host?.Add(_moveGhost);
+        }
+
+        private void UpdateMoveGhost(Vector2 panelPosition)
+        {
+            if (_moveGhost == null)
+                return;
+
+            float half = _moveGhost.resolvedStyle.width > 0 ? _moveGhost.resolvedStyle.width / 2f : 28f;
+            _moveGhost.style.left = panelPosition.x - half;
+            _moveGhost.style.top = panelPosition.y - half;
         }
 
         private void SelectRange(Vector2Int start, Vector2Int end)
