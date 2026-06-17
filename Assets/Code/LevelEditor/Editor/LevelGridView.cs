@@ -16,6 +16,7 @@ namespace Code.LevelEditor.Editor
 
         private readonly List<Vector2Int> _selection = new();
         private Vector2Int? _selectionStart;
+        private Vector2Int? _hoverCell;
 
         /// <summary>
         /// Raised on right click. Arguments are the clicked cell position and the
@@ -38,10 +39,48 @@ namespace Code.LevelEditor.Editor
             Rebuild();
         }
 
+        /// <summary>Finds the grid cell under a panel-space position (e.g. a pointer event position).</summary>
+        public bool TryGetCellAt(Vector2 panelPosition, out Vector2Int cellPos)
+        {
+            cellPos = default;
+
+            if (_cells == null || _level == null)
+                return false;
+
+            for (int y = 0; y < _level.Height; y++)
+            for (int x = 0; x < _level.Width; x++)
+            {
+                if (_cells[x, y].worldBound.Contains(panelPosition))
+                {
+                    cellPos = new Vector2Int(x, y);
+                    return true;
+                }
+            }
+
+            return false;
+        }
+
+        /// <summary>Highlights a single cell as a drop target (pass null to clear).</summary>
+        public void SetHoverCell(Vector2Int? cell)
+        {
+            if (_hoverCell.HasValue && IsValid(_hoverCell.Value))
+                _cells[_hoverCell.Value.x, _hoverCell.Value.y].RemoveFromClassList("le-cell--drop-target");
+
+            _hoverCell = cell;
+
+            if (cell.HasValue && IsValid(cell.Value))
+                _cells[cell.Value.x, cell.Value.y].AddToClassList("le-cell--drop-target");
+        }
+
+        private bool IsValid(Vector2Int p) =>
+            _cells != null && _level != null &&
+            p.x >= 0 && p.x < _level.Width && p.y >= 0 && p.y < _level.Height;
+
         public void Rebuild()
         {
             Clear();
             _cells = null;
+            _hoverCell = null;
 
             if (_level == null)
                 return;

@@ -19,6 +19,8 @@ namespace Code.LevelEditor.Editor
         private IntegerField _heightField;
         private VisualElement _inspector;
         private LevelGridView _grid;
+        private BlockPaletteView _palette;
+        private BlockDragController _dragController;
 
         private IntegerField _newIndexField;
         private TextField _newNameField;
@@ -39,8 +41,21 @@ namespace Code.LevelEditor.Editor
             LevelEditorStyles.Apply(rootVisualElement);
             rootVisualElement.AddToClassList("le-root");
 
+            _dragController = new BlockDragController(
+                rootVisualElement,
+                () => _grid,
+                () => _selected,
+                () => _grid?.RefreshCells());
+
+            var split = new TwoPaneSplitView(0, 170, TwoPaneSplitViewOrientation.Horizontal);
+            split.style.flexGrow = 1;
+            rootVisualElement.Add(split);
+
+            _palette = new BlockPaletteView(_dragController.AttachTile);
+            split.Add(_palette);
+
             var scroll = new ScrollView();
-            rootVisualElement.Add(scroll);
+            split.Add(scroll);
 
             scroll.Add(BuildSelectSection());
             scroll.Add(BuildCreateSection());
@@ -50,12 +65,15 @@ namespace Code.LevelEditor.Editor
 
             LoadLevels();
             RefreshDropdown();
+            RefreshPalette();
 
             if (_levels.Count > 0)
                 SelectLevel(_levels[0]);
             else
                 RebuildInspector();
         }
+
+        private void RefreshPalette() => _palette?.SetLibrary(LoadLibrary());
 
         // ---- Select / delete ----
 
@@ -79,6 +97,7 @@ namespace Code.LevelEditor.Editor
             {
                 LoadLevels();
                 RefreshDropdown();
+                RefreshPalette();
                 SelectLevel(_levels.FirstOrDefault());
             }) { text = "Refresh" };
             refresh.style.flexGrow = 1;
