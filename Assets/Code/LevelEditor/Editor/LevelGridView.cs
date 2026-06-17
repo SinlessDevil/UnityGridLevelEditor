@@ -336,6 +336,34 @@ namespace Code.LevelEditor.Editor
             if (_cells == null || _level == null)
                 return false;
 
+            // Cells are a uniform grid, so the hovered cell can be found by arithmetic
+            // (O(1)) instead of scanning every cell — this runs on each pointer move.
+            var origin = _cells[0, 0].worldBound;
+            float stepX = _level.Width > 1 ? _cells[1, 0].worldBound.xMin - origin.xMin : origin.width;
+            float stepY = _level.Height > 1 ? _cells[0, 1].worldBound.yMin - origin.yMin : origin.height;
+
+            // Fall back to a scan if the layout hasn't resolved yet (zero/invalid bounds).
+            if (stepX <= 0f || stepY <= 0f)
+                return ScanForCell(panelPosition, out cellPos);
+
+            int col = Mathf.FloorToInt((panelPosition.x - origin.xMin) / stepX);
+            int row = Mathf.FloorToInt((panelPosition.y - origin.yMin) / stepY);
+
+            if (col < 0 || col >= _level.Width || row < 0 || row >= _level.Height)
+                return false;
+
+            // Verify the hit so points in the gap between cells behave like before.
+            if (!_cells[col, row].worldBound.Contains(panelPosition))
+                return false;
+
+            cellPos = new Vector2Int(col, row);
+            return true;
+        }
+
+        private bool ScanForCell(Vector2 panelPosition, out Vector2Int cellPos)
+        {
+            cellPos = default;
+
             for (int y = 0; y < _level.Height; y++)
             for (int x = 0; x < _level.Width; x++)
             {
