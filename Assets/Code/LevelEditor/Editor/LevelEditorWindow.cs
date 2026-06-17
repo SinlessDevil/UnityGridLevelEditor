@@ -11,6 +11,7 @@ namespace Code.LevelEditor.Editor
         private const string LevelsFolder = "Assets/Resources/StaticData/LevelsData";
 
         private readonly List<LevelMatrixEditor> _levels = new();
+        private readonly LevelHistory _history = new();
         private LevelMatrixEditor _selected;
 
         private DropdownField _levelDropdown;
@@ -31,7 +32,7 @@ namespace Code.LevelEditor.Editor
         private IntegerField _newWidthField;
         private IntegerField _newHeightField;
 
-        [MenuItem("Tools/Gid Level Editor/Level Window")]
+        [MenuItem("Tools/Grid Level Editor/Level Window")]
         private static void OpenWindow()
         {
             var window = GetWindow<LevelEditorWindow>();
@@ -208,6 +209,7 @@ namespace Code.LevelEditor.Editor
 
             if (_selected == null)
             {
+                _history.Clear();
                 _inspector.Add(new HelpBox("No level selected. Create one above.", HelpBoxMessageType.Info));
                 return;
             }
@@ -250,7 +252,13 @@ namespace Code.LevelEditor.Editor
             _grid.GhostHost = rootVisualElement;
             _grid.Log = _log.Log;
             _grid.CellRightClicked += OnCellRightClicked;
+            _grid.Changed += () => _history.Record();
+            _grid.UndoRequested += PerformUndo;
+            _grid.RedoRequested += PerformRedo;
             _grid.SetLevel(_selected);
+
+            // Fresh undo history per opened level (reset on level switch / rename).
+            _history.Begin(_selected);
 
             var gridScroll = new ScrollView(ScrollViewMode.VerticalAndHorizontal);
             gridScroll.Add(_grid);
@@ -264,6 +272,7 @@ namespace Code.LevelEditor.Editor
             "Ctrl + LMB — select cells (range)",
             "RMB — block menu (rotate / copy / paste / clear)",
             "Ctrl + C / Ctrl + V — copy / paste selected cells",
+            "Ctrl + Z / Ctrl + Y — undo / redo",
             "Backspace / Delete — clear selected cells"
         };
 
@@ -346,8 +355,50 @@ namespace Code.LevelEditor.Editor
             _widthField.SetValueWithoutNotify(_selected.Width);
             _heightField.SetValueWithoutNotify(_selected.Height);
             _grid.Rebuild();
+            _history.Record();
 
             _log.Log($"Resized to {_selected.Width}×{_selected.Height}", LogLevel.Info);
+        }
+
+        // ---- Undo / redo (per-level, window-local history) ----
+
+        private void OnDisable() => _history.Clear();
+
+        private void PerformUndo()
+        {
+            if (_history.Undo())
+            {
+                SyncAfterHistory();
+                _log.Log("Undo", LogLevel.Info);
+            }
+            else
+            {
+                _log.Log("Nothing to undo", LogLevel.Info);
+            }
+        }
+
+        private void PerformRedo()
+        {
+            if (_history.Redo())
+            {
+                SyncAfterHistory();
+                _log.Log("Redo", LogLevel.Info);
+            }
+            else
+            {
+                _log.Log("Nothing to redo", LogLevel.Info);
+            }
+        }
+
+        /// <summary>Re-reads the restored level into the grid and size fields (size can change via resize undo).</summary>
+        private void SyncAfterHistory()
+        {
+            if (_selected == null)
+                return;
+
+            _grid.SetLevel(_selected); // re-reads cells, clears selection, rebuilds
+            _widthField?.SetValueWithoutNotify(_selected.Width);
+            _heightField?.SetValueWithoutNotify(_selected.Height);
         }
 
         private void OnCellRightClicked(Vector2Int pos, Vector2 panelMouse)
@@ -366,6 +417,7 @@ namespace Code.LevelEditor.Editor
             {
                 EditorUtility.SetDirty(_selected);
                 _grid.RefreshCells();
+                _history.Record();
             }, _log.Log, cells => _grid.FlashCells(cells));
         }
 

@@ -70,6 +70,13 @@ namespace Code.LevelEditor.Editor
         /// </summary>
         public event Action<Vector2Int, Vector2> CellRightClicked;
 
+        /// <summary>Raised after a committed grid mutation, so the window can push an undo step.</summary>
+        public event Action Changed;
+
+        /// <summary>Raised on Ctrl+Z / Ctrl+Y (Ctrl+Shift+Z); handled by the window's history.</summary>
+        public event Action UndoRequested;
+        public event Action RedoRequested;
+
         public IReadOnlyList<Vector2Int> Selection => _selection;
 
         /// <summary>
@@ -655,6 +662,7 @@ namespace Code.LevelEditor.Editor
             _selectionStart = null;
 
             RefreshCells();
+            Changed?.Invoke();
         }
 
         private void CancelMove()
@@ -966,6 +974,7 @@ namespace Code.LevelEditor.Editor
 
             EditorUtility.SetDirty(_level);
             RefreshCells();
+            Changed?.Invoke();
             Log?.Invoke($"Placed '{_externalBlock.ID}'", LogLevel.Success);
             return true;
         }
@@ -1007,6 +1016,19 @@ namespace Code.LevelEditor.Editor
                 PasteSelection();
                 evt.StopPropagation();
             }
+            else if (evt.keyCode == KeyCode.Z)
+            {
+                if (evt.shiftKey)
+                    RedoRequested?.Invoke();
+                else
+                    UndoRequested?.Invoke();
+                evt.StopPropagation();
+            }
+            else if (evt.keyCode == KeyCode.Y)
+            {
+                RedoRequested?.Invoke();
+                evt.StopPropagation();
+            }
         }
 
         private void DeleteSelection()
@@ -1026,6 +1048,7 @@ namespace Code.LevelEditor.Editor
             _selection.Clear();
             _selectionStart = null;
             RefreshCells();
+            Changed?.Invoke();
 
             Log?.Invoke($"Deleted {count} selected cell(s)", LogLevel.Info);
         }
@@ -1062,6 +1085,7 @@ namespace Code.LevelEditor.Editor
             {
                 EditorUtility.SetDirty(_level);
                 RefreshCells();
+                Changed?.Invoke();
             }
 
             if (blocked > 0 && pasted == 0)

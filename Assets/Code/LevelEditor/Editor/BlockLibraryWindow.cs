@@ -37,7 +37,7 @@ namespace Code.LevelEditor.Editor
         private VisualElement _listContainer;
         private VisualElement _selectedContainer;
 
-        [MenuItem("Tools/Gid Level Editor/Block Window")]
+        [MenuItem("Tools/Grid Level Editor/Block Window")]
         public static void ShowWindow()
         {
             var window = GetWindow<BlockLibraryWindow>(false, "Block Library", true);

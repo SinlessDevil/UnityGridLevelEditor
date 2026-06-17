@@ -27,6 +27,48 @@ namespace Code.LevelEditor
         /// <summary>Returns a fresh instance id for a newly placed multi-cell block.</summary>
         public int NewInstanceId() => nextInstanceId++;
 
+        /// <summary>Current instance-id counter (captured/restored by the editor undo history).</summary>
+        public int NextInstanceId => nextInstanceId;
+
+        /// <summary>Deep copy of the grid, used by the editor's undo history.</summary>
+        public LevelCell[] CloneCells()
+        {
+            EnsureInitialized();
+
+            var copy = new LevelCell[cells.Length];
+            for (int i = 0; i < cells.Length; i++)
+            {
+                var c = cells[i];
+                copy[i] = new LevelCell
+                {
+                    Block = c?.Block,
+                    Rotation = c?.Rotation ?? Quaternion.identity,
+                    InstanceId = c?.InstanceId ?? 0
+                };
+            }
+
+            return copy;
+        }
+
+        /// <summary>Replaces the whole grid from an undo snapshot (deep-copied so the snapshot stays intact).</summary>
+        public void RestoreCells(LevelCell[] snapshot, int snapWidth, int snapHeight, int snapNextInstanceId)
+        {
+            width = Mathf.Max(1, snapWidth);
+            height = Mathf.Max(1, snapHeight);
+            nextInstanceId = snapNextInstanceId;
+
+            var restored = new LevelCell[width * height];
+            for (int i = 0; i < restored.Length; i++)
+            {
+                var c = snapshot != null && i < snapshot.Length ? snapshot[i] : null;
+                restored[i] = c != null
+                    ? new LevelCell { Block = c.Block, Rotation = c.Rotation, InstanceId = c.InstanceId }
+                    : new LevelCell();
+            }
+
+            cells = restored;
+        }
+
         public LevelCell GetCell(int x, int y) => cells[Index(x, y)];
         public LevelCell GetCell(Vector2Int pos) => cells[Index(pos.x, pos.y)];
 
