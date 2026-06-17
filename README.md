@@ -31,6 +31,7 @@ Levels and blocks are plain ScriptableObjects under `Assets/Resources/StaticData
 - Built-in log panel and a controls overlay.
 
 <img width="2552" height="1383" alt="image" src="https://github.com/user-attachments/assets/6dde5fea-8594-4342-af7b-8e3256d5de6c" />
+<img width="2554" height="1387" alt="image" src="https://github.com/user-attachments/assets/1cffcad2-29d9-4208-963a-2a52513cf73f" />
 <img width="448" height="612" alt="image" src="https://github.com/user-attachments/assets/0f921739-e02f-4670-aa43-8f3376c991d0" />
 
 ### Runtime Generator
