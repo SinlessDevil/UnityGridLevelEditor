@@ -20,7 +20,7 @@ Levels and blocks are plain ScriptableObjects under `Assets/Resources/StaticData
 - Define multi-cell footprints (rectangle, L, T, cross, …) on a paint grid.
 - Search and sort by id, prefab or icon name.
 
-![Block Library](https://github.com/SinlessDevil/Grid_Level_Editor/blob/main/Images/1.png)
+<img width="750" height="1078" alt="image" src="https://github.com/user-attachments/assets/b9da6cae-a2f2-469a-a7b5-2e25bb20f48f" />
 
 ### Level Editor
 - Visual grid editor (`Tools → Grid Level Editor → Level Window`).
@@ -30,8 +30,8 @@ Levels and blocks are plain ScriptableObjects under `Assets/Resources/StaticData
 - Context menu (right click) for block selection, rotation, copy/paste and clearing.
 - Built-in log panel and a controls overlay.
 
-![Level Editor](https://github.com/SinlessDevil/Grid_Level_Editor/blob/main/Images/2.png)
-![Context Popup](https://github.com/SinlessDevil/Grid_Level_Editor/blob/main/Images/3.png)
+<img width="2552" height="1383" alt="image" src="https://github.com/user-attachments/assets/6dde5fea-8594-4342-af7b-8e3256d5de6c" />
+<img width="448" height="612" alt="image" src="https://github.com/user-attachments/assets/0f921739-e02f-4670-aa43-8f3376c991d0" />
 
 ### Runtime Generator
 - Spawns floor tiles and blocks from the authored level data through injected factories.
