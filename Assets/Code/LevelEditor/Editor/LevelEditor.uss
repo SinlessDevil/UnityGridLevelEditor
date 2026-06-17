@@ -145,18 +145,20 @@
     -unity-background-scale-mode: scale-to-fit;
 }
 
+.le-plate__tile {
+    position: absolute;
+    -unity-background-scale-mode: scale-to-fit;
+}
+
 .le-plate__id {
     position: absolute;
-    bottom: 1px;
     font-size: 10px;
     color: white;
-    -unity-text-align: lower-center;
+    -unity-text-align: middle-center;
 }
 
 .le-plate__arrow {
     position: absolute;
-    top: -2px;
-    left: 50%;
     font-size: 18px;
     -unity-font-style: bold;
     color: rgb(80, 220, 80);

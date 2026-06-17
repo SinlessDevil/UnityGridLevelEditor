@@ -32,7 +32,7 @@ namespace Code.LevelEditor.Editor
         private int _movePointerId = -1;
         private readonly List<Vector2Int> _dragOffsets = new();
         private readonly List<StampIcon> _stampIcons = new();   // per-cell preview (single / multi-selection)
-        private VisualElement _stampPlate;                      // one merged preview for a whole object
+        private ObjectPlate _stampPlate;                        // one merged preview for a whole object
         private bool _stampMerged;
         private BlockDataEditor _externalBlock;
 
@@ -51,14 +51,18 @@ namespace Code.LevelEditor.Editor
         private readonly struct PlateInfo
         {
             public readonly List<Vector2Int> Cells;
-            public readonly VisualElement Element;
+            public readonly ObjectPlate Element;
 
-            public PlateInfo(List<Vector2Int> cells, VisualElement element)
+            public PlateInfo(List<Vector2Int> cells, ObjectPlate element)
             {
                 Cells = cells;
                 Element = element;
             }
         }
+
+        // Cells are drawn with a 1px margin; expand each rect by this so a plate's
+        // cells merge with no internal gaps.
+        private const float CellGapPad = 1f;
 
         /// <summary>
         /// Raised on right click. Arguments are the clicked cell position and the
@@ -251,7 +255,7 @@ namespace Code.LevelEditor.Editor
                         selected = true;
                         break;
                     }
-                plate.EnableInClassList("le-plate--selected", selected);
+                plate.SetSelected(selected);
 
                 _plateLayer.Add(plate);
                 _plates.Add(new PlateInfo(cells, plate));
@@ -260,28 +264,11 @@ namespace Code.LevelEditor.Editor
             PositionPlates();
         }
 
-        private VisualElement BuildPlate(List<Vector2Int> cells, BlockDataEditor block)
+        private ObjectPlate BuildPlate(List<Vector2Int> cells, BlockDataEditor block)
         {
-            var plate = new VisualElement { tooltip = block.ID };
-            plate.AddToClassList("le-plate");
-
-            var icon = new VisualElement { pickingMode = PickingMode.Ignore };
-            icon.AddToClassList("le-plate__icon");
-            if (block.Icon != null)
-                icon.style.backgroundImage = Background.FromSprite(block.Icon);
-            plate.Add(icon);
-
-            var arrow = new Label("↑") { pickingMode = PickingMode.Ignore };
-            arrow.AddToClassList("le-plate__arrow");
+            var plate = new ObjectPlate { tooltip = block.ID };
             float angle = _level.GetCell(cells[0]).Rotation.eulerAngles.y;
-            arrow.style.translate = new Translate(Length.Percent(-50), 0);
-            arrow.style.rotate = new Rotate(new Angle(angle, AngleUnit.Degree));
-            plate.Add(arrow);
-
-            var label = new Label(block.ID) { pickingMode = PickingMode.Ignore };
-            label.AddToClassList("le-plate__id");
-            plate.Add(label);
-
+            plate.SetContent(block.Icon, block.ID, angle);
             plate.RegisterCallback<PointerDownEvent>(evt => OnPlatePointerDown(evt, cells));
 
             return plate;
@@ -293,25 +280,44 @@ namespace Code.LevelEditor.Editor
                 return;
 
             foreach (var info in _plates)
+                PositionPlate(info.Element, info.Cells);
+        }
+
+        /// <summary>Places a plate over its cells and feeds the exact footprint to it.</summary>
+        private void PositionPlate(ObjectPlate plate, List<Vector2Int> cells)
+        {
+            float minX = float.MaxValue, minY = float.MaxValue;
+            float maxX = float.MinValue, maxY = float.MinValue;
+
+            foreach (var c in cells)
             {
-                float minX = float.MaxValue, minY = float.MaxValue;
-                float maxX = float.MinValue, maxY = float.MinValue;
-
-                foreach (var c in info.Cells)
-                {
-                    var wb = _cells[c.x, c.y].worldBound;
-                    minX = Mathf.Min(minX, wb.xMin);
-                    minY = Mathf.Min(minY, wb.yMin);
-                    maxX = Mathf.Max(maxX, wb.xMax);
-                    maxY = Mathf.Max(maxY, wb.yMax);
-                }
-
-                var topLeft = _plateLayer.WorldToLocal(new Vector2(minX, minY));
-                info.Element.style.left = topLeft.x;
-                info.Element.style.top = topLeft.y;
-                info.Element.style.width = maxX - minX;
-                info.Element.style.height = maxY - minY;
+                var wb = _cells[c.x, c.y].worldBound;
+                minX = Mathf.Min(minX, wb.xMin);
+                minY = Mathf.Min(minY, wb.yMin);
+                maxX = Mathf.Max(maxX, wb.xMax);
+                maxY = Mathf.Max(maxY, wb.yMax);
             }
+
+            plate.style.left = _plateLayer.WorldToLocal(new Vector2(minX, minY)).x;
+            plate.style.top = _plateLayer.WorldToLocal(new Vector2(minX, minY)).y;
+            plate.style.width = maxX - minX;
+            plate.style.height = maxY - minY;
+
+            // Per-cell rects in the plate's local space (origin = bbox top-left).
+            var rects = new Rect[cells.Count];
+            var coords = new Vector2Int[cells.Count];
+            for (int i = 0; i < cells.Count; i++)
+            {
+                var wb = _cells[cells[i].x, cells[i].y].worldBound;
+                rects[i] = new Rect(
+                    wb.xMin - minX - CellGapPad,
+                    wb.yMin - minY - CellGapPad,
+                    wb.width + 2 * CellGapPad,
+                    wb.height + 2 * CellGapPad);
+                coords[i] = cells[i];
+            }
+
+            plate.SetShape(rects, coords);
         }
 
         // ---- Hit testing / highlight ----
@@ -741,8 +747,7 @@ namespace Code.LevelEditor.Editor
 
             if (merged)
             {
-                if (mergedIcon != null)
-                    _stampPlate = CreateStampPlate(host, mergedIcon);
+                _stampPlate = CreateStampPlate(host);
                 return;
             }
 
@@ -766,16 +771,9 @@ namespace Code.LevelEditor.Editor
             return icon;
         }
 
-        private VisualElement CreateStampPlate(VisualElement host, Sprite sprite)
+        private ObjectPlate CreateStampPlate(VisualElement host)
         {
-            var plate = new VisualElement { pickingMode = PickingMode.Ignore };
-            plate.AddToClassList("le-stamp-plate");
-
-            var icon = new VisualElement { pickingMode = PickingMode.Ignore };
-            icon.AddToClassList("le-stamp-plate__icon");
-            icon.style.backgroundImage = Background.FromSprite(sprite);
-            plate.Add(icon);
-
+            var plate = new ObjectPlate(ghost: true);
             plate.style.display = DisplayStyle.None;
             host.Add(plate);
             return plate;
@@ -836,15 +834,15 @@ namespace Code.LevelEditor.Editor
 
             float minX = float.MaxValue, minY = float.MaxValue;
             float maxX = float.MinValue, maxY = float.MinValue;
-            bool any = false;
 
+            var inBounds = new List<Vector2Int>(_dragOffsets.Count);
             foreach (var offset in _dragOffsets)
             {
                 var dst = hovered + offset;
                 if (!_level.InBounds(dst))
                     continue;
 
-                any = true;
+                inBounds.Add(dst);
                 var wb = _cells[dst.x, dst.y].worldBound;
                 minX = Mathf.Min(minX, wb.xMin);
                 minY = Mathf.Min(minY, wb.yMin);
@@ -852,7 +850,7 @@ namespace Code.LevelEditor.Editor
                 maxY = Mathf.Max(maxY, wb.yMax);
             }
 
-            if (!any)
+            if (inBounds.Count == 0)
             {
                 _stampPlate.style.display = DisplayStyle.None;
                 return;
@@ -864,6 +862,21 @@ namespace Code.LevelEditor.Editor
             _stampPlate.style.top = topLeft.y;
             _stampPlate.style.width = maxX - minX;
             _stampPlate.style.height = maxY - minY;
+
+            var rects = new Rect[inBounds.Count];
+            var coords = new Vector2Int[inBounds.Count];
+            for (int i = 0; i < inBounds.Count; i++)
+            {
+                var wb = _cells[inBounds[i].x, inBounds[i].y].worldBound;
+                rects[i] = new Rect(
+                    wb.xMin - minX - CellGapPad,
+                    wb.yMin - minY - CellGapPad,
+                    wb.width + 2 * CellGapPad,
+                    wb.height + 2 * CellGapPad);
+                coords[i] = inBounds[i];
+            }
+
+            _stampPlate.SetShape(rects, coords);
         }
 
         private void HideStampVisuals()
@@ -905,15 +918,15 @@ namespace Code.LevelEditor.Editor
                 _dragOffsets.Add(offset);
 
             var host = GhostHost ?? panel?.visualTree;
-            if (host == null || block.Icon == null)
+            if (host == null)
                 return;
 
             if (block.IsMultiCell)
             {
                 _stampMerged = true;
-                _stampPlate = CreateStampPlate(host, block.Icon);
+                _stampPlate = CreateStampPlate(host);
             }
-            else
+            else if (block.Icon != null)
             {
                 _stampIcons.Add(new StampIcon(Vector2Int.zero, CreateStampIcon(host, block.Icon)));
             }
