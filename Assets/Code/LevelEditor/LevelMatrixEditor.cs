@@ -1,290 +1,98 @@
 using System.Collections.Generic;
-using Sirenix.OdinInspector;
-using Sirenix.Serialization;
-using Sirenix.Utilities;
 using UnityEngine;
 
 namespace Code.LevelEditor
 {
     [CreateAssetMenu(menuName = "StaticData/Levels/LevelData", fileName = "LevelData", order = 801)]
-    public class LevelMatrixEditor : BaseLevelDataEditor
+    public class LevelMatrixEditor : ScriptableObject
     {
-        [HorizontalGroup("Level")] [OnValueChanged(nameof(ResizeGrid))] [SerializeField, LabelText("Level Index")]
-        public int IndexLevel;
+        [SerializeField] private int indexLevel;
+        [SerializeField] private int width = 5;
+        [SerializeField] private int height = 5;
 
-        [HorizontalGroup("Size")] [OnValueChanged(nameof(ResizeGrid))] [SerializeField, LabelText("Width")]
-        private int width = 5;
+        // Unity can't serialize a 2D array, so the grid is stored flat (row-major)
+        // and addressed through Index(x, y). Use GetCell / GetLevelDataDto to read it.
+        [SerializeField] private LevelCell[] cells = new LevelCell[0];
 
-        [HorizontalGroup("Size")] [OnValueChanged(nameof(ResizeGrid))] [SerializeField, LabelText("Height")]
-        private int height = 5;
-
-        [OdinSerialize]
-        [TableMatrix(
-            HorizontalTitle = "Level Grid",
-            DrawElementMethod = nameof(DrawLevelCell),
-            ResizableColumns = false,
-            RowHeight = 64,
-            SquareCells = true)]
-        public LevelCell[,] Grid;
-
-#if UNITY_EDITOR
-
-        private static BlockLibrary cachedLibrary;
-        private Vector2Int? selectionStart;
-        private List<Vector2Int> currentSelection = new();
-
-        private LevelCell DrawLevelCell(Rect rect, LevelCell cell, int x, int y)
+        public int IndexLevel
         {
-            cell ??= new LevelCell();
-
-            LoadLibrary();
-
-            DrawCellContent(rect, GetCell(x, y));
-            DrawSelectionOverlay(rect, x, y);
-            HandleCellInteraction(rect, x, y);
-
-            return GetCell(x, y);
+            get => indexLevel;
+            set => indexLevel = value;
         }
 
-        private void LoadLibrary()
+        public int Width => width;
+        public int Height => height;
+
+        public LevelCell GetCell(int x, int y) => cells[Index(x, y)];
+        public LevelCell GetCell(Vector2Int pos) => cells[Index(pos.x, pos.y)];
+
+        public bool InBounds(int x, int y) => x >= 0 && x < width && y >= 0 && y < height;
+        public bool InBounds(Vector2Int pos) => InBounds(pos.x, pos.y);
+
+        private int Index(int x, int y) => x + y * width;
+
+        public void EnsureInitialized()
         {
-            if (cachedLibrary != null) 
+            if (width <= 0) width = 1;
+            if (height <= 0) height = 1;
+
+            if (cells == null || cells.Length != width * height)
+            {
+                Resize(width, height);
                 return;
-
-            string[] guids = UnityEditor.AssetDatabase.FindAssets("t:BlockLibrary");
-            if (guids.Length == 0) 
-                return;
-
-            string path = UnityEditor.AssetDatabase.GUIDToAssetPath(guids[0]);
-            cachedLibrary = UnityEditor.AssetDatabase.LoadAssetAtPath<BlockLibrary>(path);
-        }
-
-        private void DrawCellContent(Rect rect, LevelCell cell)
-        {
-            if (cell.Block != null && cell.Block.Icon != null)
-            {
-                GUI.DrawTexture(rect.Padding(4), cell.Block.Icon.texture, ScaleMode.ScaleToFit);
-                DrawBlockId(rect, cell.Block.ID);
-                DrawRotationArrow(rect, cell.Rotation);
-            }
-            else
-            {
-                UnityEditor.EditorGUI.DrawRect(rect.Padding(4), Color.gray);
-            }
-        }
-
-        private void DrawBlockId(Rect rect, string id)
-        {
-            GUI.Label(rect.Padding(2), id, new GUIStyle(GUI.skin.label)
-            {
-                alignment = TextAnchor.LowerCenter,
-                fontSize = 12,
-                normal = { textColor = Color.white }
-            });
-        }
-
-        private void DrawRotationArrow(Rect rect, Quaternion rotation)
-        {
-            var oldMatrix = GUI.matrix;
-            Vector2 center = rect.center;
-            float angle = rotation.eulerAngles.y;
-            GUIUtility.RotateAroundPivot(angle, center);
-
-            GUI.Label(new Rect(center.x - 10, rect.yMin - 4, 25, 25), "↑", new GUIStyle(GUI.skin.label)
-            {
-                alignment = TextAnchor.UpperCenter,
-                fontSize = 25,
-                normal = { textColor = Color.green },
-                fontStyle = FontStyle.Bold
-            });
-
-            GUI.matrix = oldMatrix;
-        }
-
-        private void DrawSelectionOverlay(Rect rect, int x, int y)
-        {
-            if (currentSelection.Contains(new Vector2Int(x, y)))
-            {
-                UnityEditor.EditorGUI.DrawRect(rect, new Color(0f, 1f, 0f, 0.25f));
-            }
-        }
-
-        private void HandleCellInteraction(Rect rect, int x, int y)
-        {
-            if (Event.current.type == EventType.MouseDown && rect.Contains(Event.current.mousePosition))
-            {
-                if (Event.current.button == 0)
-                {
-                    if (Event.current.control)
-                    {
-                        if (!selectionStart.HasValue)
-                        {
-                            selectionStart = new Vector2Int(x, y);
-                            currentSelection.Clear();
-                            currentSelection.Add(selectionStart.Value);
-                        }
-                        else
-                        {
-                            Vector2Int end = new Vector2Int(x, y);
-                            currentSelection.Clear();
-
-                            int minX = Mathf.Min(selectionStart.Value.x, end.x);
-                            int maxX = Mathf.Max(selectionStart.Value.x, end.x);
-                            int minY = Mathf.Min(selectionStart.Value.y, end.y);
-                            int maxY = Mathf.Max(selectionStart.Value.y, end.y);
-
-                            for (int i = minX; i <= maxX; i++)
-                            for (int j = minY; j <= maxY; j++)
-                                currentSelection.Add(new Vector2Int(i, j));
-
-                            selectionStart = null;
-                            UnityEditorInternal.InternalEditorUtility.RepaintAllViews();
-                        }
-                    }
-                    else
-                    {
-                        selectionStart = null;
-                        currentSelection.Clear();
-                    }
-
-                    Event.current.Use();
-                }
-
-                if (Event.current.button == 1)
-                {
-                    ShowContextMenu(GetCell(x, y), x, y);
-                    Event.current.Use();
-                }
-            }
-        }
-
-        private void ShowContextMenu(LevelCell cell, int x, int y)
-        {
-            if (cachedLibrary == null) 
-                return;
-
-            Vector2 screenPos = GUIUtility.GUIToScreenPoint(Event.current.mousePosition);
-            Vector2 windowSize = new Vector2(350, 550);
-            Rect rect = new Rect(screenPos, windowSize);
-
-            Vector2Int clickedPos = new Vector2Int(x, y);
-            if (currentSelection == null || !currentSelection.Contains(clickedPos))
-                currentSelection = new List<Vector2Int> { clickedPos };
-
-            BlockPopupWindow.LevelEditorHelpers.TryGetCell = pos => GetCell(pos);
-
-            BlockPopupWindow.ShowPopup(
-                rect,
-                cachedLibrary,
-                block => ApplyBlock(block, cell),
-                angle => ApplyRotation(angle, cell),
-                () => ClearBlock(cell),
-                currentSelection
-            );
-        }
-
-        private void ApplyBlock(BlockDataEditor block, LevelCell fallbackCell)
-        {
-            if (currentSelection.Count > 0)
-            {
-                foreach (var pos in currentSelection)
-                    GetCell(pos).Block = block;
-            }
-            else
-            {
-                fallbackCell.Block = block;
             }
 
-            MarkDirty();
+            for (int i = 0; i < cells.Length; i++)
+                cells[i] ??= new LevelCell();
         }
 
-        private void ApplyRotation(float angle, LevelCell fallbackCell)
+        public void Resize(int newWidth, int newHeight)
         {
-            Debug.Log($"⟳ Apply Rotation: {angle}°");
+            newWidth = Mathf.Max(1, newWidth);
+            newHeight = Mathf.Max(1, newHeight);
 
-            Quaternion rotation = Quaternion.Euler(0, angle, 0);
+            var newCells = new LevelCell[newWidth * newHeight];
 
-            if (currentSelection.Count > 0)
+            // Only carry over old cells when the current array is consistent with
+            // width/height (a freshly created asset can have a 0-length array while
+            // the size fields still hold their defaults).
+            bool hasOldGrid = cells != null && cells.Length == width * height;
+
+            for (int y = 0; y < newHeight; y++)
+            for (int x = 0; x < newWidth; x++)
             {
-                foreach (var pos in currentSelection)
-                    GetCell(pos).Rotation = rotation;
-            }
-            else
-            {
-                fallbackCell.Rotation = rotation;
+                LevelCell preserved = null;
+                if (hasOldGrid && x < width && y < height)
+                    preserved = cells[x + y * width];
+
+                newCells[x + y * newWidth] = preserved ?? new LevelCell();
             }
 
-            MarkDirty();
+            cells = newCells;
+            width = newWidth;
+            height = newHeight;
         }
-
-        private void ClearBlock(LevelCell fallbackCell)
-        {
-            if (currentSelection.Count > 0)
-            {
-                foreach (var pos in currentSelection)
-                    GetCell(pos).Block = null;
-            }
-            else
-            {
-                fallbackCell.Block = null;
-            }
-
-            MarkDirty();
-        }
-
-        private void MarkDirty()
-        {
-            GUI.changed = true;
-            UnityEditor.EditorUtility.SetDirty(this);
-            UnityEditorInternal.InternalEditorUtility.RepaintAllViews();
-        }
-
-        private LevelCell GetCell(int x, int y) => Grid[x, y];
-        public override LevelCell GetCell(Vector2Int pos) => Grid[pos.x, pos.y];
-#endif
 
         public LevelDataDTO GetLevelDataDto()
         {
-            var levelData = new LevelDataDTO(Grid, IndexLevel);
-            return levelData;
+            EnsureInitialized();
+
+            var grid = new LevelCell[width, height];
+            for (int y = 0; y < height; y++)
+            for (int x = 0; x < width; x++)
+                grid[x, y] = GetCell(x, y);
+
+            return new LevelDataDTO(grid, indexLevel);
         }
 
         public IEnumerable<Vector2Int> GetAllOfType(BlockDataEditor type)
         {
-            for (int x = 0; x < Grid.GetLength(0); x++)
-            for (int y = 0; y < Grid.GetLength(1); y++)
-                if (Grid[x, y]?.Block == type)
+            for (int y = 0; y < height; y++)
+            for (int x = 0; x < width; x++)
+                if (GetCell(x, y)?.Block == type)
                     yield return new Vector2Int(x, y);
         }
 
-        private void OnValidate() => ValidateGrid();
-
-        public void ValidateGrid() => ResizeGrid();
-
-        private void ResizeGrid()
-        {
-            if (width <= 0) 
-                width = 1;
-            if (height <= 0) 
-                height = 1;
-
-            var newGrid = new LevelCell[width, height];
-
-            if (Grid != null)
-            {
-                int minWidth = Mathf.Min(width, Grid.GetLength(0));
-                int minHeight = Mathf.Min(height, Grid.GetLength(1)); // 👈 y
-
-                for (int x = 0; x < minWidth; x++)
-                for (int y = 0; y < minHeight; y++)
-                    newGrid[x, y] = Grid[x, y];
-            }
-
-            for (int x = 0; x < width; x++)
-            for (int y = 0; y < height; y++)
-                newGrid[x, y] ??= new LevelCell();
-
-            Grid = newGrid;
-        }
+        private void OnValidate() => EnsureInitialized();
     }
 }

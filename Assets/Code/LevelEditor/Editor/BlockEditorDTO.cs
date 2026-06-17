@@ -2,7 +2,7 @@ using System;
 using UnityEditor;
 using UnityEngine;
 
-namespace Code.LevelEditor
+namespace Code.LevelEditor.Editor
 {
     [Serializable]
     public class BlockEditorDTO

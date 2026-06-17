@@ -1,0 +1,299 @@
+using System.Collections.Generic;
+using System.Linq;
+using UnityEditor;
+using UnityEngine;
+using UnityEngine.UIElements;
+
+namespace Code.LevelEditor.Editor
+{
+    public class LevelEditorWindow : EditorWindow
+    {
+        private const string LevelsFolder = "Assets/Resources/StaticData/LevelsData";
+
+        private readonly List<LevelMatrixEditor> _levels = new();
+        private LevelMatrixEditor _selected;
+
+        private DropdownField _levelDropdown;
+        private IntegerField _indexField;
+        private IntegerField _widthField;
+        private IntegerField _heightField;
+        private VisualElement _inspector;
+        private LevelGridView _grid;
+
+        private IntegerField _newIndexField;
+        private TextField _newNameField;
+        private IntegerField _newWidthField;
+        private IntegerField _newHeightField;
+
+        [MenuItem("Tools/Gid Level Editor/Level Window")]
+        private static void OpenWindow()
+        {
+            var window = GetWindow<LevelEditorWindow>();
+            window.titleContent = new GUIContent("Level Editor");
+            window.minSize = new Vector2(520, 600);
+            window.Show();
+        }
+
+        private void CreateGUI()
+        {
+            LevelEditorStyles.Apply(rootVisualElement);
+            rootVisualElement.AddToClassList("le-root");
+
+            var scroll = new ScrollView();
+            rootVisualElement.Add(scroll);
+
+            scroll.Add(BuildSelectSection());
+            scroll.Add(BuildCreateSection());
+
+            _inspector = new VisualElement();
+            scroll.Add(_inspector);
+
+            LoadLevels();
+            RefreshDropdown();
+
+            if (_levels.Count > 0)
+                SelectLevel(_levels[0]);
+            else
+                RebuildInspector();
+        }
+
+        // ---- Select / delete ----
+
+        private VisualElement BuildSelectSection()
+        {
+            var box = LevelEditorStyles.Section("Select Level");
+
+            _levelDropdown = new DropdownField("Level");
+            _levelDropdown.RegisterValueChangedCallback(_ =>
+            {
+                int index = _levelDropdown.index;
+                if (index >= 0 && index < _levels.Count)
+                    SelectLevel(_levels[index]);
+            });
+            box.Add(_levelDropdown);
+
+            var row = new VisualElement();
+            row.AddToClassList("le-row");
+
+            var refresh = new Button(() =>
+            {
+                LoadLevels();
+                RefreshDropdown();
+                SelectLevel(_levels.FirstOrDefault());
+            }) { text = "Refresh" };
+            refresh.style.flexGrow = 1;
+            row.Add(refresh);
+
+            var delete = new Button(DeleteSelected) { text = "🗑 Delete Selected" };
+            delete.AddToClassList("le-delete-button");
+            delete.style.flexGrow = 1;
+            row.Add(delete);
+
+            box.Add(row);
+            return box;
+        }
+
+        private void DeleteSelected()
+        {
+            if (_selected == null)
+            {
+                Debug.LogWarning("⚠️ No level selected to delete.");
+                return;
+            }
+
+            if (!EditorUtility.DisplayDialog(
+                    "Delete Level",
+                    $"Are you sure you want to delete '{_selected.name}'?\nThis cannot be undone.",
+                    "Delete", "Cancel"))
+                return;
+
+            string path = AssetDatabase.GetAssetPath(_selected);
+            if (!string.IsNullOrEmpty(path))
+            {
+                AssetDatabase.DeleteAsset(path);
+                AssetDatabase.SaveAssets();
+                AssetDatabase.Refresh();
+                Debug.Log($"Deleted level: {path}");
+            }
+
+            LoadLevels();
+            RefreshDropdown();
+            SelectLevel(_levels.FirstOrDefault());
+        }
+
+        // ---- Create ----
+
+        private VisualElement BuildCreateSection()
+        {
+            var box = LevelEditorStyles.Section("Create Level");
+
+            _newIndexField = new IntegerField("Level Index") { value = 1 };
+            _newNameField = new TextField("Name") { value = "NewLevel" };
+            _newWidthField = new IntegerField("Width") { value = 5 };
+            _newHeightField = new IntegerField("Height") { value = 5 };
+
+            box.Add(_newIndexField);
+            box.Add(_newNameField);
+            box.Add(_newWidthField);
+            box.Add(_newHeightField);
+
+            var create = new Button(CreateLevel) { text = "Create Level" };
+            create.AddToClassList("le-create-button");
+            box.Add(create);
+
+            return box;
+        }
+
+        private void CreateLevel()
+        {
+            if (!AssetDatabase.IsValidFolder(LevelsFolder))
+                AssetDatabase.CreateFolder("Assets/Resources/StaticData", "LevelsData");
+
+            string levelName = string.IsNullOrWhiteSpace(_newNameField.value) ? "NewLevel" : _newNameField.value;
+
+            var level = CreateInstance<LevelMatrixEditor>();
+            level.name = levelName;
+            level.IndexLevel = _newIndexField.value;
+            level.Resize(_newWidthField.value, _newHeightField.value);
+
+            string assetPath = AssetDatabase.GenerateUniqueAssetPath($"{LevelsFolder}/{levelName}.asset");
+            AssetDatabase.CreateAsset(level, assetPath);
+            AssetDatabase.SaveAssets();
+            AssetDatabase.Refresh();
+            Debug.Log($"Created new level: {assetPath}");
+
+            LoadLevels();
+            RefreshDropdown();
+            SelectLevel(level);
+        }
+
+        // ---- Inspector + grid ----
+
+        private void RebuildInspector()
+        {
+            _inspector.Clear();
+
+            if (_selected == null)
+            {
+                _inspector.Add(new HelpBox("No level selected. Create one above.", HelpBoxMessageType.Info));
+                return;
+            }
+
+            var box = LevelEditorStyles.Section($"Editing: {_selected.name}");
+
+            _indexField = new IntegerField("Level Index") { value = _selected.IndexLevel };
+            _indexField.RegisterValueChangedCallback(evt =>
+            {
+                _selected.IndexLevel = evt.newValue;
+                EditorUtility.SetDirty(_selected);
+            });
+            box.Add(_indexField);
+
+            var sizeRow = new VisualElement();
+            sizeRow.AddToClassList("le-row");
+
+            _widthField = new IntegerField("Width") { value = _selected.Width };
+            _heightField = new IntegerField("Height") { value = _selected.Height };
+            _widthField.style.flexGrow = 1;
+            _heightField.style.flexGrow = 1;
+            sizeRow.Add(_widthField);
+            sizeRow.Add(_heightField);
+
+            var resize = new Button(ResizeSelected) { text = "Apply Size" };
+            sizeRow.Add(resize);
+            box.Add(sizeRow);
+
+            _inspector.Add(box);
+
+            _grid = new LevelGridView();
+            _grid.CellRightClicked += OnCellRightClicked;
+            _grid.SetLevel(_selected);
+
+            var gridScroll = new ScrollView(ScrollViewMode.VerticalAndHorizontal);
+            gridScroll.Add(_grid);
+            _inspector.Add(gridScroll);
+        }
+
+        private void ResizeSelected()
+        {
+            if (_selected == null)
+                return;
+
+            _selected.Resize(_widthField.value, _heightField.value);
+            EditorUtility.SetDirty(_selected);
+
+            _widthField.SetValueWithoutNotify(_selected.Width);
+            _heightField.SetValueWithoutNotify(_selected.Height);
+            _grid.Rebuild();
+        }
+
+        private void OnCellRightClicked(Vector2Int pos, Vector2 panelMouse)
+        {
+            var library = LoadLibrary();
+            if (library == null)
+            {
+                Debug.LogWarning("⚠️ No BlockLibrary found. Open the Block Library window to create one.");
+                return;
+            }
+
+            Vector2 screenPos = position.position + panelMouse;
+            var activator = new Rect(screenPos, Vector2.zero);
+
+            BlockPopup.Show(activator, _selected, library, _grid.Selection.ToList(), () =>
+            {
+                EditorUtility.SetDirty(_selected);
+                _grid.RefreshCells();
+            });
+        }
+
+        // ---- Data loading ----
+
+        private void SelectLevel(LevelMatrixEditor level)
+        {
+            _selected = level;
+
+            if (level != null)
+            {
+                int index = _levels.IndexOf(level);
+                if (index >= 0)
+                    _levelDropdown.SetValueWithoutNotify(_levelDropdown.choices[index]);
+            }
+
+            RebuildInspector();
+        }
+
+        private void LoadLevels()
+        {
+            _levels.Clear();
+
+            if (!AssetDatabase.IsValidFolder(LevelsFolder))
+                return;
+
+            string[] guids = AssetDatabase.FindAssets("t:LevelMatrixEditor", new[] { LevelsFolder });
+            foreach (string guid in guids)
+            {
+                string path = AssetDatabase.GUIDToAssetPath(guid);
+                var level = AssetDatabase.LoadAssetAtPath<LevelMatrixEditor>(path);
+                if (level != null)
+                    _levels.Add(level);
+            }
+
+            _levels.Sort((a, b) => a.IndexLevel.CompareTo(b.IndexLevel));
+        }
+
+        private void RefreshDropdown()
+        {
+            _levelDropdown.choices = _levels.Select(l => l.name).ToList();
+        }
+
+        private static BlockLibrary LoadLibrary()
+        {
+            string[] guids = AssetDatabase.FindAssets("t:BlockLibrary");
+            if (guids.Length == 0)
+                return null;
+
+            string path = AssetDatabase.GUIDToAssetPath(guids[0]);
+            return AssetDatabase.LoadAssetAtPath<BlockLibrary>(path);
+        }
+    }
+}
