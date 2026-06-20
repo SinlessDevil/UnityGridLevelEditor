@@ -120,6 +120,51 @@ namespace Code.LevelEditor.Editor
             return plate;
         }
 
+        /// <summary>
+        /// Briefly blinks every plate that covers one of the given cells red. Cells under a
+        /// plate can't show the per-cell flash (the plate paints over them), so the blocking
+        /// object itself flashes instead.
+        /// </summary>
+        public void Flash(IEnumerable<Vector2Int> cells)
+        {
+            if (_layer == null)
+                return;
+
+            var set = new HashSet<Vector2Int>(cells);
+            if (set.Count == 0)
+                return;
+
+            var targets = new List<ObjectPlate>();
+            foreach (var info in _plates)
+                foreach (var c in info.Cells)
+                    if (set.Contains(c))
+                    {
+                        targets.Add(info.Element);
+                        break;
+                    }
+
+            if (targets.Count == 0)
+                return;
+
+            const int toggles = 6;
+            int count = 0;
+
+            IVisualElementScheduledItem item = null;
+            item = _layer.schedule.Execute(() =>
+            {
+                bool on = count % 2 == 0;
+                foreach (var t in targets)
+                    t.SetFlash(on);
+
+                if (++count >= toggles)
+                {
+                    foreach (var t in targets)
+                        t.SetFlash(false);
+                    item?.Pause();
+                }
+            }).Every(110);
+        }
+
         public void PositionAll()
         {
             if (_layer == null || _ctx.Cells == null || _ctx.Level == null)

@@ -175,7 +175,14 @@ namespace Code.LevelEditor.Editor
         public void SetHoverCells(IEnumerable<Vector2Int> cells, bool valid) =>
             _highlighter.SetHoverCells(cells, valid);
 
-        public void FlashCells(IEnumerable<Vector2Int> cells) => _highlighter.FlashCells(cells);
+        public void FlashCells(IEnumerable<Vector2Int> cells)
+        {
+            // Materialize once: highlighter flashes standalone/empty cells, the plate layer
+            // flashes any multi-cell object covering them (the per-cell flash hides under it).
+            var list = cells as IReadOnlyList<Vector2Int> ?? new List<Vector2Int>(cells);
+            _highlighter.FlashCells(list);
+            _plateLayer.Flash(list);
+        }
 
         // ---- Pointer input routing ----
 

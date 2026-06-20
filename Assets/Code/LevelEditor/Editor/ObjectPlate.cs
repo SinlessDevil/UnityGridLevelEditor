@@ -20,6 +20,10 @@ namespace Code.LevelEditor.Editor
         private static readonly Color GhostFill = new(0.43f, 0.43f, 0.43f, 0.45f);
         private static readonly Color GhostOutline = new(0.65f, 0.65f, 0.65f, 0.8f);
 
+        // Matches the .le-cell--flash USS red so plate and cell flashes look the same.
+        private static readonly Color FlashFill = new(0.88f, 0.31f, 0.31f);
+        private static readonly Color FlashOutline = new(1f, 0.47f, 0.47f);
+
         private readonly bool _ghost;
         private readonly VisualElement _decorLayer;
 
@@ -27,6 +31,7 @@ namespace Code.LevelEditor.Editor
         private Vector2Int[] _coords = Array.Empty<Vector2Int>();
         private HashSet<Vector2Int> _set = new();
         private bool _selected;
+        private bool _flashing;
 
         private Sprite _icon;
         private string _id;
@@ -83,6 +88,16 @@ namespace Code.LevelEditor.Editor
             MarkDirtyRepaint();
         }
 
+        /// <summary>Paints the whole plate red while on (used by the "no space here" flash).</summary>
+        public void SetFlash(bool on)
+        {
+            if (_flashing == on)
+                return;
+
+            _flashing = on;
+            MarkDirtyRepaint();
+        }
+
         public override bool ContainsPoint(Vector2 localPoint)
         {
             foreach (var r in _rects)
@@ -101,7 +116,7 @@ namespace Code.LevelEditor.Editor
 
             var p = mgc.painter2D;
 
-            p.fillColor = _ghost ? GhostFill : FillColor;
+            p.fillColor = _flashing ? FlashFill : (_ghost ? GhostFill : FillColor);
             foreach (var r in _rects)
             {
                 p.BeginPath();
@@ -114,7 +129,7 @@ namespace Code.LevelEditor.Editor
             }
 
             p.lineWidth = 2f;
-            p.strokeColor = _selected ? SelectedColor : (_ghost ? GhostOutline : OutlineColor);
+            p.strokeColor = _flashing ? FlashOutline : (_selected ? SelectedColor : (_ghost ? GhostOutline : OutlineColor));
 
             for (int i = 0; i < _rects.Length; i++)
             {
