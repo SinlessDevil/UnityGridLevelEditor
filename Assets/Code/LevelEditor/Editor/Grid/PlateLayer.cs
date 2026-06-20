@@ -114,7 +114,7 @@ namespace Code.LevelEditor.Editor
             var plate = new ObjectPlate { tooltip = block.ID };
             plate.SetZoom(_zoom.Zoom);
             float angle = _ctx.Level.GetCell(cells[0]).Rotation.eulerAngles.y;
-            plate.SetContent(block.Icon, block.ID, angle);
+            plate.SetContent(block, block.ID, angle);
             plate.RegisterCallback<PointerDownEvent>(evt => _onPlatePointerDown(evt, cells));
 
             return plate;

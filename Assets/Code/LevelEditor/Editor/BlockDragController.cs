@@ -110,8 +110,7 @@ namespace Code.LevelEditor.Editor
             _ghost = new VisualElement { pickingMode = PickingMode.Ignore };
             _ghost.AddToClassList("le-drag-ghost");
 
-            if (block.Icon != null)
-                _ghost.style.backgroundImage = Background.FromSprite(block.Icon);
+            BlockIconResolver.Apply(_ghost, block);
 
             _ghostHost.Add(_ghost);
         }

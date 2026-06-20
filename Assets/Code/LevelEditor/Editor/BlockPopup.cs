@@ -226,8 +226,7 @@ namespace Code.LevelEditor.Editor
 
             var icon = new VisualElement();
             icon.AddToClassList("le-block-row__icon");
-            if (block.Icon != null)
-                icon.style.backgroundImage = Background.FromSprite(block.Icon);
+            BlockIconResolver.Apply(icon, block);
             row.Add(icon);
 
             var label = new Label(block.ID);
@@ -271,8 +270,7 @@ namespace Code.LevelEditor.Editor
 
                 var icon = new VisualElement();
                 icon.AddToClassList("le-block-row__icon");
-                if (cell?.Block?.Icon != null)
-                    icon.style.backgroundImage = Background.FromSprite(cell.Block.Icon);
+                BlockIconResolver.Apply(icon, cell?.Block);
                 row.Add(icon);
 
                 string blockId = cell?.Block != null ? cell.Block.ID : "Empty";

@@ -64,12 +64,12 @@ namespace Code.LevelEditor.Editor
             bool hasBlock = data?.Block != null;
             bool isInstance = hasBlock && data.InstanceId != 0;
             // Per-cell icon is only drawn for standalone blocks; instances draw a plate.
-            bool showIcon = hasBlock && data.Block.Icon != null && !isInstance;
+            bool showIcon = hasBlock && !isInstance && BlockIconResolver.HasVisual(data.Block);
 
             if (showIcon)
             {
                 icon.style.display = DisplayStyle.Flex;
-                icon.style.backgroundImage = Background.FromSprite(data.Block.Icon);
+                BlockIconResolver.Apply(icon, data.Block);
 
                 id.style.display = DisplayStyle.Flex;
                 id.text = data.Block.ID;

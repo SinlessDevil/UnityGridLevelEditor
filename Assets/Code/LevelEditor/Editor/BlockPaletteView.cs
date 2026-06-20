@@ -105,8 +105,7 @@ namespace Code.LevelEditor.Editor
 
             var icon = new VisualElement { pickingMode = PickingMode.Ignore };
             icon.AddToClassList("le-palette-tile__icon");
-            if (block.Icon != null)
-                icon.style.backgroundImage = Background.FromSprite(block.Icon);
+            BlockIconResolver.Apply(icon, block);
             tile.Add(icon);
 
             var label = new Label(block.ID) { pickingMode = PickingMode.Ignore };

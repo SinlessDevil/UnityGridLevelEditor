@@ -33,7 +33,7 @@ namespace Code.LevelEditor.Editor
         private bool _selected;
         private bool _flashing;
 
-        private Sprite _icon;
+        private BlockDataEditor _block;
         private string _id;
         private float _arrowAngle;
         private float _zoom = 1f;
@@ -58,9 +58,9 @@ namespace Code.LevelEditor.Editor
             generateVisualContent += OnGenerateVisualContent;
         }
 
-        public void SetContent(Sprite icon, string id, float arrowAngle)
+        public void SetContent(BlockDataEditor block, string id, float arrowAngle)
         {
-            _icon = icon;
+            _block = block;
             _id = id;
             _arrowAngle = arrowAngle;
             RebuildDecor();
@@ -172,7 +172,7 @@ namespace Code.LevelEditor.Editor
             bool rectangular = _coords.Length == (maxX - minX + 1) * (maxY - minY + 1);
 
             // One icon: spans the whole rectangle, otherwise sits on the central cell.
-            if (_icon != null)
+            if (BlockIconResolver.HasVisual(_block))
                 AddIcon(rectangular ? UnionRect() : _rects[NearestToCentroid()]);
 
             // Arrow at the top of the top row's central cell.
@@ -188,7 +188,7 @@ namespace Code.LevelEditor.Editor
             float pad = 5f * _zoom;
             var icon = new VisualElement { pickingMode = PickingMode.Ignore };
             icon.AddToClassList("le-plate__tile");
-            icon.style.backgroundImage = Background.FromSprite(_icon);
+            BlockIconResolver.Apply(icon, _block);
             icon.style.left = rect.xMin + pad;
             icon.style.top = rect.yMin + pad;
             icon.style.width = Mathf.Max(0f, rect.width - 2 * pad);

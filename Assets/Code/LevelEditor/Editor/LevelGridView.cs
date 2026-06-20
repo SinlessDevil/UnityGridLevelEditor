@@ -94,7 +94,6 @@ namespace Code.LevelEditor.Editor
         public void ZoomIn() => _zoom.ZoomIn();
         public void ZoomOut() => _zoom.ZoomOut();
         public void ResetZoom() => _zoom.ResetZoom();
-        public void SetZoom(float zoom) => _zoom.SetZoom(zoom);
 
         public void SetLevel(LevelMatrixEditor level)
         {
@@ -169,11 +168,6 @@ namespace Code.LevelEditor.Editor
 
         public bool TryGetCellAt(Vector2 panelPosition, out Vector2Int cellPos) =>
             _hitTester.TryGetCellAt(panelPosition, out cellPos);
-
-        public void SetHoverCell(Vector2Int? cell) => _highlighter.SetHoverCell(cell);
-
-        public void SetHoverCells(IEnumerable<Vector2Int> cells, bool valid) =>
-            _highlighter.SetHoverCells(cells, valid);
 
         public void FlashCells(IEnumerable<Vector2Int> cells)
         {

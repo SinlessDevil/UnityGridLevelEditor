@@ -87,10 +87,10 @@ namespace Code.LevelEditor.Editor
             foreach (var cellPos in group)
             {
                 var data = _ctx.Level.GetCell(cellPos);
-                if (data?.Block?.Icon == null)
+                if (!BlockIconResolver.HasVisual(data?.Block))
                     continue;
 
-                _stampIcons.Add(new StampIcon(cellPos - anchor, CreateStampIcon(host, data.Block.Icon)));
+                _stampIcons.Add(new StampIcon(cellPos - anchor, CreateStampIcon(host, data.Block)));
             }
         }
 
@@ -114,9 +114,9 @@ namespace Code.LevelEditor.Editor
                 _stampMerged = true;
                 _stampPlate = CreateStampPlate(host);
             }
-            else if (block.Icon != null)
+            else if (BlockIconResolver.HasVisual(block))
             {
-                _stampIcons.Add(new StampIcon(Vector2Int.zero, CreateStampIcon(host, block.Icon)));
+                _stampIcons.Add(new StampIcon(Vector2Int.zero, CreateStampIcon(host, block)));
             }
         }
 
@@ -164,11 +164,11 @@ namespace Code.LevelEditor.Editor
 
         // ---- Internal helpers ----
 
-        private VisualElement CreateStampIcon(VisualElement host, Sprite sprite)
+        private VisualElement CreateStampIcon(VisualElement host, BlockDataEditor block)
         {
             var icon = new VisualElement { pickingMode = PickingMode.Ignore };
             icon.AddToClassList("le-stamp-icon");
-            icon.style.backgroundImage = Background.FromSprite(sprite);
+            BlockIconResolver.Apply(icon, block);
             icon.style.display = DisplayStyle.None;
             host.Add(icon);
             return icon;

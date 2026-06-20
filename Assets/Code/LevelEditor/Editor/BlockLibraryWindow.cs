@@ -134,11 +134,14 @@ namespace Code.LevelEditor.Editor
             string id = _newIdField.value;
             var sprite = _newSpriteField.value as Sprite;
 
-            if (string.IsNullOrEmpty(id) || sprite == null)
+            if (string.IsNullOrEmpty(id))
             {
-                Debug.LogWarning("Block ID and Icon are required.");
+                Debug.LogWarning("Block ID is required.");
                 return;
             }
+
+            // Icon is an optional override — without it the editor shows the prefab's
+            // auto-generated asset preview (see BlockIconResolver).
 
             if (!AssetDatabase.IsValidFolder(BlocksFolder))
                 AssetDatabase.CreateFolder("Assets/Resources/StaticData", "BlocksData");
@@ -258,8 +261,7 @@ namespace Code.LevelEditor.Editor
 
             var icon = new VisualElement();
             icon.AddToClassList("le-block-row__icon");
-            if (block.Icon != null)
-                icon.style.backgroundImage = Background.FromSprite(block.Icon);
+            BlockIconResolver.Apply(icon, block);
             row.Add(icon);
 
             var label = new Label($"{block.ID}   ({(block.Prefab != null ? block.Prefab.name : "no prefab")})");
