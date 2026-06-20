@@ -47,12 +47,15 @@ namespace Code.LevelEditor.Editor
         /// Pastes the buffer with its first cell aligned to <paramref name="anchor"/>.
         /// Copied objects are placed only on free cells (all-or-nothing, with a new
         /// instance id); standalone cells overwrite empty/standalone targets but never
-        /// objects. Returns how many cells were written and how many were blocked.
+        /// objects. Returns how many cells were written and the destination cells that
+        /// were blocked (for highlighting "no space here").
         /// </summary>
-        public static (int pasted, int blocked) Paste(LevelMatrixEditor level, Vector2Int anchor)
+        public static (int pasted, List<Vector2Int> blocked) Paste(LevelMatrixEditor level, Vector2Int anchor)
         {
+            var blocked = new List<Vector2Int>();
+
             if (Cells.Count == 0)
-                return (0, 0);
+                return (0, blocked);
 
             Vector2Int firstSource = default;
             bool found = false;
@@ -64,7 +67,7 @@ namespace Code.LevelEditor.Editor
             }
 
             if (!found)
-                return (0, 0);
+                return (0, blocked);
 
             var delta = anchor - firstSource;
 
@@ -85,7 +88,7 @@ namespace Code.LevelEditor.Editor
                 }
             }
 
-            int pasted = 0, blocked = 0;
+            int pasted = 0;
 
             // Each copied object becomes one new instance, only if all its cells are free.
             foreach (var group in objectGroups.Values)
@@ -103,7 +106,8 @@ namespace Code.LevelEditor.Editor
 
                 if (!free)
                 {
-                    blocked += group.Count;
+                    foreach (var pair in group)
+                        blocked.Add(pair.Key + delta);
                     continue;
                 }
 
@@ -128,7 +132,7 @@ namespace Code.LevelEditor.Editor
                 var c = level.GetCell(t);
                 if (c.InstanceId != 0)
                 {
-                    blocked++;
+                    blocked.Add(t);
                     continue;
                 }
 

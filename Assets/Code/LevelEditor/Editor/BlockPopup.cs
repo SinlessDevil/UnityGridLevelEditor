@@ -479,10 +479,7 @@ namespace Code.LevelEditor.Editor
                 if (!_level.InBounds(pos))
                     continue;
 
-                var cell = _level.GetCell(pos);
-                cell.Block = null;
-                cell.Rotation = Quaternion.identity;
-                cell.InstanceId = 0;
+                LevelGridOps.ClearCell(_level, pos);
             }
 
             Changed();
@@ -520,10 +517,13 @@ namespace Code.LevelEditor.Editor
             if (pasted > 0)
                 Changed();
 
-            if (blocked > 0 && pasted == 0)
+            if (blocked.Count > 0)
+                _flash?.Invoke(blocked);
+
+            if (blocked.Count > 0 && pasted == 0)
                 _log?.Invoke("Can't paste here: no free space", LogLevel.Error);
-            else if (blocked > 0)
-                _log?.Invoke($"Pasted {pasted}, {blocked} cell(s) skipped (no space)", LogLevel.Info);
+            else if (blocked.Count > 0)
+                _log?.Invoke($"Pasted {pasted}, {blocked.Count} cell(s) skipped (no space)", LogLevel.Info);
             else
                 _log?.Invoke($"Pasted {pasted} cell(s)", LogLevel.Success);
         }
