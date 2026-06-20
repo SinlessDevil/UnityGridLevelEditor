@@ -14,7 +14,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   id: Building41
   icon: {fileID: 0}
-  prefab: {fileID: 737321427216349457, guid: 790293235f84c9a419a9fd2943b6e8fa, type: 3}
+  prefab: {fileID: 236913160982834904, guid: 498dd284120409044b0531d00bd70347, type: 3}
   footprint:
   - {x: 0, y: 0}
   - {x: 1, y: -1}
