@@ -24,6 +24,8 @@ namespace Code.LevelEditor.Editor
         private BlockPaletteView _palette;
         private BlockDragController _dragController;
         private LogView _log;
+        private VisualElement _gridViewport;
+        private GridPanController _pan;
         private VisualElement _hintsPopup;
         private bool _hintsVisible;
 
@@ -55,14 +57,25 @@ namespace Code.LevelEditor.Editor
             _palette = new BlockPaletteView(_dragController.AttachTile, BlockLibraryWindow.ShowWindow, RefreshPalette);
             split.Add(_palette);
 
-            var scroll = new ScrollView();
-            split.Add(scroll);
+            // Right pane: scrollable controls on top, the grid viewport filling the rest down
+            // to the log. The viewport clips the grid and the grid is freely panned inside it.
+            var rightPane = new VisualElement();
+            rightPane.style.flexGrow = 1;
+            split.Add(rightPane);
 
-            scroll.Add(BuildSelectSection());
-            scroll.Add(BuildCreateSection());
+            var controls = new ScrollView();
+            rightPane.Add(controls);
+
+            controls.Add(BuildSelectSection());
+            controls.Add(BuildCreateSection());
 
             _inspector = new VisualElement();
-            scroll.Add(_inspector);
+            controls.Add(_inspector);
+
+            _gridViewport = new VisualElement();
+            _gridViewport.AddToClassList("le-grid-viewport");
+            _gridViewport.style.flexGrow = 1;
+            rightPane.Add(_gridViewport);
 
             _log = new LogView();
             rootVisualElement.Add(_log);
@@ -206,6 +219,7 @@ namespace Code.LevelEditor.Editor
         private void RebuildInspector()
         {
             _inspector.Clear();
+            _gridViewport.Clear();
 
             if (_selected == null)
             {
@@ -255,16 +269,22 @@ namespace Code.LevelEditor.Editor
             _grid.Changed += () => _history.Record();
             _grid.UndoRequested += PerformUndo;
             _grid.RedoRequested += PerformRedo;
+            // Keep the grid at its natural size: align-self stops the cross-axis stretch and
+            // flex-shrink 0 stops the viewport from compressing it vertically when the map is
+            // larger than the window (which distorted the row spacing).
+            _grid.style.alignSelf = Align.FlexStart;
+            _grid.style.flexShrink = 0;
             _grid.SetLevel(_selected);
 
             // Fresh undo history per opened level (reset on level switch / rename).
             _history.Begin(_selected);
 
-            _inspector.Add(BuildZoomToolbar());
+            // The grid fills the clipped viewport and is panned freely inside it with the
+            // middle mouse button (no scroll); the ⊕ button in the zoom toolbar recenters it.
+            _gridViewport.Add(_grid);
+            _pan = new GridPanController(_gridViewport, _grid);
 
-            var gridScroll = new ScrollView(ScrollViewMode.VerticalAndHorizontal);
-            gridScroll.Add(_grid);
-            _inspector.Add(gridScroll);
+            _inspector.Add(BuildZoomToolbar());
         }
 
         /// <summary>Zoom controls for the grid (−/＋/1:1 plus a live percentage label). Ctrl+wheel also zooms.</summary>
@@ -283,6 +303,7 @@ namespace Code.LevelEditor.Editor
             row.Add(label);
             row.Add(new Button(() => _grid.ZoomIn()) { text = "＋", tooltip = "Zoom in" });
             row.Add(new Button(() => _grid.ResetZoom()) { text = "1:1", tooltip = "Reset zoom" });
+            row.Add(new Button(() => _pan.ResetPosition()) { text = "⊕", tooltip = "Reset map position (middle-mouse drag to pan)" });
 
             _grid.ZoomChanged += UpdateLabel;
             UpdateLabel();
@@ -299,7 +320,8 @@ namespace Code.LevelEditor.Editor
             "Ctrl + C / Ctrl + V — copy / paste selected cells",
             "Ctrl + Z / Ctrl + Y — undo / redo",
             "Backspace / Delete — clear selected cells",
-            "Ctrl + Mouse Wheel — zoom the grid (or use −/＋)"
+            "Ctrl + Mouse Wheel — zoom the grid (or use −/＋)",
+            "Middle-Mouse drag — pan the map (⊕ resets position)"
         };
 
         private void BuildHelpOverlay()

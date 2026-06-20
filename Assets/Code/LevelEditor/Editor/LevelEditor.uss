@@ -93,6 +93,18 @@
     flex-direction: row;
 }
 
+/* Clipped pan viewport (the "mask"): the grid is moved freely inside it. */
+.le-grid-viewport {
+    flex-grow: 1;
+    min-height: 150px;
+    overflow: hidden;
+    margin-top: 4px;
+    border-width: 1px;
+    border-color: rgba(0, 0, 0, 0.5);
+    border-radius: 4px;
+    background-color: rgba(0, 0, 0, 0.18);
+}
+
 .le-cell {
     width: 64px;
     height: 64px;
